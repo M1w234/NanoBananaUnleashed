@@ -1,0 +1,1518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🍌 Gemini Image Tools</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+                'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+                sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            background: #1a2332;
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .animate-spin {
+            animation: spin 1s linear infinite;
+        }
+
+        .mode-btn {
+            transition: all 0.2s ease;
+        }
+
+        .mode-btn:not(.active) {
+            opacity: 0.7;
+        }
+
+        .mode-btn.active {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useRef, useEffect } = React;
+
+        // Icons
+        const Camera = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+        );
+
+        const Upload = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+            </svg>
+        );
+
+        const Loader2 = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83" />
+            </svg>
+        );
+
+        const Download = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+        );
+
+        const X = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+        );
+
+        const Zap = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+        );
+
+        const CheckCircle = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+        );
+
+        const ChevronDown = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+        );
+
+        const Sparkles = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+            </svg>
+        );
+
+        const Settings = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+        );
+
+        const Eye = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+        );
+
+        const EyeOff = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+            </svg>
+        );
+
+        const Key = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+            </svg>
+        );
+
+        const AlertTriangle = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+        );
+
+        const Lightbulb = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+            </svg>
+        );
+
+        // API Settings Modal
+        function ApiKeySettings({ isOpen, onClose, apiKey, onSave, selectedModel, onModelChange, availableModels }) {
+            const [inputKey, setInputKey] = useState(apiKey || '');
+            const [inputModel, setInputModel] = useState(selectedModel || 'gemini-3-pro-image-preview');
+            const [showKey, setShowKey] = useState(false);
+            const [saved, setSaved] = useState(false);
+
+            useEffect(() => {
+                setInputKey(apiKey || '');
+                setInputModel(selectedModel || 'gemini-3-pro-image-preview');
+            }, [apiKey, selectedModel]);
+
+            const handleSave = () => {
+                onSave(inputKey);
+                onModelChange(inputModel);
+                setSaved(true);
+                setTimeout(() => setSaved(false), 2000);
+            };
+
+            const handleClear = () => {
+                setInputKey('');
+                onSave('');
+                setSaved(true);
+                setTimeout(() => setSaved(false), 2000);
+            };
+
+            if (!isOpen) return null;
+
+            return (
+                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+                    <div className="bg-[#2a3544] rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-700">
+                        <div className="flex items-center justify-between p-5 border-b border-slate-700">
+                            <div className="flex items-center gap-3">
+                                <Settings className="w-6 h-6 text-amber-500" />
+                                <h2 className="text-xl font-bold text-white">API Key Settings</h2>
+                            </div>
+                            <button onClick={onClose} className="text-slate-400 hover:text-white">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <div className="p-5 space-y-5">
+                            <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4 flex gap-3">
+                                <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                                <div className="text-sm text-amber-200 space-y-1">
+                                    <p className="font-semibold">⚠️ Security Notice</p>
+                                    <p className="text-xs">Your API key is stored locally in your browser. Only use this on trusted devices.</p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-white font-medium text-sm flex items-center gap-2">
+                                    <Key className="w-4 h-4 text-amber-500" />
+                                    Google Gemini API Key
+                                </label>
+                                <div className="relative">
+                                    <input
+                                        type={showKey ? "text" : "password"}
+                                        value={inputKey}
+                                        onChange={(e) => setInputKey(e.target.value)}
+                                        placeholder="AIza..."
+                                        className="w-full bg-[#1e2835] text-white rounded-lg p-3 pr-11 border border-slate-600 focus:border-amber-500 focus:outline-none font-mono text-sm"
+                                    />
+                                    <button
+                                        onClick={() => setShowKey(!showKey)}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                                    >
+                                        {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                    </button>
+                                </div>
+                                <p className="text-slate-400 text-xs">
+                                    Get your key from{' '}
+                                    <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-amber-500 hover:underline">
+                                        Google AI Studio
+                                    </a>
+                                </p>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-white font-medium text-sm flex items-center gap-2">
+                                    <Sparkles className="w-4 h-4 text-amber-500" />
+                                    AI Model
+                                </label>
+                                <select
+                                    value={inputModel}
+                                    onChange={(e) => setInputModel(e.target.value)}
+                                    className="w-full bg-[#1e2835] text-white rounded-lg p-3 border border-slate-600 focus:border-amber-500 focus:outline-none cursor-pointer text-sm"
+                                >
+                                    {availableModels.map(model => (
+                                        <option key={model.id} value={model.id}>{model.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {saved && (
+                                <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3 flex items-center gap-2">
+                                    <CheckCircle className="w-4 h-4 text-green-500" />
+                                    <span className="text-green-400 font-semibold text-sm">
+                                        {inputKey ? 'Saved successfully!' : 'API key cleared!'}
+                                    </span>
+                                </div>
+                            )}
+
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={handleSave}
+                                    className="flex-1 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold py-2.5 px-4 rounded-lg transition-all shadow-lg text-sm"
+                                >
+                                    Save Settings
+                                </button>
+                                {apiKey && (
+                                    <button
+                                        onClick={handleClear}
+                                        className="bg-red-500 hover:bg-red-600 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors text-sm"
+                                    >
+                                        Clear
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        function GeminiImageTools() {
+            const availableModels = [
+                { id: 'gemini-3-pro-image-preview', name: 'Gemini 3 Pro Image Preview (Recommended)' },
+                { id: 'gemini-3-pro-image', name: 'Gemini 3 Pro Image' },
+                { id: 'imagen-3.0-generate-001', name: 'Imagen 3.0 Generate' },
+                { id: 'imagen-3.0-fast-generate-001', name: 'Imagen 3.0 Fast' },
+            ];
+
+            const [apiKey, setApiKey] = useState('');
+            const [selectedModel, setSelectedModel] = useState('gemini-3-pro-image-preview');
+            const [settingsOpen, setSettingsOpen] = useState(false);
+
+            useEffect(() => {
+                const savedKey = localStorage.getItem('gemini_api_key');
+                if (savedKey) setApiKey(savedKey);
+                
+                const savedModel = localStorage.getItem('gemini_model');
+                if (savedModel && availableModels.find(m => m.id === savedModel)) {
+                    setSelectedModel(savedModel);
+                } else {
+                    setSelectedModel('gemini-3-pro-image-preview');
+                    localStorage.setItem('gemini_model', 'gemini-3-pro-image-preview');
+                }
+            }, []);
+
+            const handleSaveApiKey = (key) => {
+                if (key) {
+                    localStorage.setItem('gemini_api_key', key);
+                    setApiKey(key);
+                } else {
+                    localStorage.removeItem('gemini_api_key');
+                    setApiKey('');
+                }
+            };
+
+            const handleSaveModel = (model) => {
+                localStorage.setItem('gemini_model', model);
+                setSelectedModel(model);
+            };
+
+            const [mode, setMode] = useState('batch');
+            const [visibleSlots, setVisibleSlots] = useState(3);
+            const [multiSlots, setMultiSlots] = useState(1);
+            const [combineSlots, setCombineSlots] = useState(1);
+            const [genSlots, setGenSlots] = useState(1);
+
+            // Batch mode states
+            const [images, setImages] = useState(Array(10).fill(null).map((_, idx) => ({
+                id: idx,
+                image: null,
+                imagePreview: null,
+                prompt: '',
+                aspectRatio: 'auto',
+                resolution: '4K',
+                loading: false,
+                result: null,
+                error: null
+            })));
+
+            // Multi-edit states
+            const [multiImage, setMultiImage] = useState(null);
+            const [multiImagePreview, setMultiImagePreview] = useState(null);
+            const [multiPrompt, setMultiPrompt] = useState('');
+            const [multiAspectRatio, setMultiAspectRatio] = useState('auto');
+            const [multiResolution, setMultiResolution] = useState('4K');
+            const [multiLoading, setMultiLoading] = useState(false);
+            const [multiResults, setMultiResults] = useState([]);
+            const multiInputRef = useRef(null);
+
+            // Combine states
+            const [combineImages, setCombineImages] = useState([]);
+            const [combineImagePreviews, setCombineImagePreviews] = useState([]);
+            const [combinePrompt, setCombinePrompt] = useState('');
+            const [combineAspectRatio, setCombineAspectRatio] = useState('16:9');
+            const [combineResolution, setCombineResolution] = useState('4K');
+            const [combineLoading, setCombineLoading] = useState(false);
+            const [combineResults, setCombineResults] = useState([]);
+
+            // Duplicate states
+            const [duplicateImage, setDuplicateImage] = useState(null);
+            const [duplicatePreview, setDuplicatePreview] = useState(null);
+            const [duplicateCount, setDuplicateCount] = useState(3);
+            const duplicateInputRef = useRef(null);
+
+            // Generate states
+            const [genPrompt, setGenPrompt] = useState('');
+            const [genAspectRatio, setGenAspectRatio] = useState('auto');
+            const [genResolution, setGenResolution] = useState('4K');
+            const [genLoading, setGenLoading] = useState(false);
+            const [genResults, setGenResults] = useState([]);
+
+            const [dropMultiOpen, setDropMultiOpen] = useState(false);
+            const [duplicateOpen, setDuplicateOpen] = useState(false);
+
+            const aspectRatioMap = {
+                'auto': null,
+                '1:1': '1:1',
+                '16:9': '16:9',
+                '9:16': '9:16',
+                '4:3': '4:3',
+                '3:4': '3:4'
+            };
+
+            // Update duplicateCount when visibleSlots changes
+            useEffect(() => {
+                if (duplicateCount > visibleSlots) {
+                    setDuplicateCount(visibleSlots);
+                }
+            }, [visibleSlots, duplicateCount]);
+
+            const fileToBase64 = (file) => {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result.split(',')[1]);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(file);
+                });
+            };
+
+            const callGeminiAPI = async (prompt, imageBase64 = null, aspectRatio = null, resolution = '4K') => {
+                if (!apiKey) {
+                    throw new Error('Please configure your API key in settings first!');
+                }
+
+                const generationConfig = { responseModalities: ['IMAGE'] };
+
+                if (aspectRatio || resolution) {
+                    generationConfig.imageConfig = {};
+                    if (aspectRatio) generationConfig.imageConfig.aspectRatio = aspectRatio;
+                    if (resolution) generationConfig.imageConfig.imageSize = resolution;
+                }
+
+                const contents = [];
+                if (imageBase64) {
+                    contents.push({
+                        role: 'user',
+                        parts: [
+                            { inlineData: { mimeType: 'image/jpeg', data: imageBase64 } },
+                            { text: prompt }
+                        ]
+                    });
+                } else {
+                    contents.push({
+                        role: 'user',
+                        parts: [{ text: prompt }]
+                    });
+                }
+
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`;
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ generationConfig, contents })
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`API Error (${response.status}): ${errorText}`);
+                }
+
+                const data = await response.json();
+                if (data.error) throw new Error(data.error.message || 'API error');
+                if (!data.candidates?.[0]?.content?.parts) throw new Error('Invalid response');
+
+                const imagePart = data.candidates[0].content.parts.find(part => part.inlineData);
+                if (!imagePart?.inlineData?.data) throw new Error('No image data');
+
+                return `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
+            };
+
+            // Batch handlers
+            const handleEdit = async (index) => {
+                const slot = images[index];
+                if (!slot.prompt.trim()) return alert('Please enter a prompt');
+
+                const newImages = [...images];
+                newImages[index] = { ...newImages[index], loading: true, error: null, result: null };
+                setImages(newImages);
+
+                try {
+                    let imageBase64 = null;
+                    if (slot.image) imageBase64 = await fileToBase64(slot.image);
+
+                    const aspectRatio = aspectRatioMap[slot.aspectRatio];
+                    const result = await callGeminiAPI(slot.prompt, imageBase64, aspectRatio, slot.resolution);
+
+                    const updatedImages = [...images];
+                    updatedImages[index] = { ...updatedImages[index], loading: false, result };
+                    setImages(updatedImages);
+                } catch (error) {
+                    const updatedImages = [...images];
+                    updatedImages[index] = { ...updatedImages[index], loading: false, error: error.message };
+                    setImages(updatedImages);
+                }
+            };
+
+            const handleFileChange = (index, e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const newImages = [...images];
+                    newImages[index] = {
+                        ...newImages[index],
+                        image: file,
+                        imagePreview: event.target.result
+                    };
+                    setImages(newImages);
+                };
+                reader.readAsDataURL(file);
+            };
+
+            const downloadResult = (index) => {
+                const result = images[index].result;
+                if (!result) return;
+                const link = document.createElement('a');
+                link.href = result;
+                link.download = `edited-${index + 1}.png`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            };
+
+            // Multi-edit handlers
+            const handleMultiEdit = async () => {
+                if (!multiImage || !multiPrompt.trim()) {
+                    return alert('Please upload an image and enter a prompt');
+                }
+
+                setMultiLoading(true);
+                setMultiResults([]);
+
+                try {
+                    const imageBase64 = await fileToBase64(multiImage);
+                    const aspectRatio = aspectRatioMap[multiAspectRatio];
+                    
+                    const promises = Array(multiSlots).fill(null).map(() =>
+                        callGeminiAPI(multiPrompt, imageBase64, aspectRatio, multiResolution)
+                    );
+
+                    const results = await Promise.all(promises);
+                    setMultiResults(results);
+                } catch (error) {
+                    alert(`Error: ${error.message}`);
+                } finally {
+                    setMultiLoading(false);
+                }
+            };
+
+            const handleMultiFileChange = (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+
+                setMultiImage(file);
+                const reader = new FileReader();
+                reader.onload = (event) => setMultiImagePreview(event.target.result);
+                reader.readAsDataURL(file);
+            };
+
+            const downloadMulti = (index) => {
+                const link = document.createElement('a');
+                link.href = multiResults[index];
+                link.download = `variation-${index + 1}.png`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            };
+
+            // Combine handlers
+            const handleCombine = async () => {
+                if (combineImages.length === 0 || !combinePrompt.trim()) {
+                    return alert('Please upload images and enter a prompt');
+                }
+
+                setCombineLoading(true);
+                setCombineResults([]);
+
+                try {
+                    const imageBase64Array = await Promise.all(combineImages.map(img => fileToBase64(img)));
+                    const aspectRatio = aspectRatioMap[combineAspectRatio];
+                    
+                    const promises = Array(combineSlots).fill(null).map(async () => {
+                        const generationConfig = { responseModalities: ['IMAGE'] };
+                        if (aspectRatio || combineResolution) {
+                            generationConfig.imageConfig = {};
+                            if (aspectRatio) generationConfig.imageConfig.aspectRatio = aspectRatio;
+                            if (combineResolution) generationConfig.imageConfig.imageSize = combineResolution;
+                        }
+
+                        const parts = imageBase64Array.map(base64 => ({
+                            inlineData: { mimeType: 'image/jpeg', data: base64 }
+                        }));
+                        parts.push({ text: combinePrompt });
+
+                        const url = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`;
+                        const response = await fetch(url, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                generationConfig,
+                                contents: [{ role: 'user', parts }]
+                            })
+                        });
+
+                        if (!response.ok) throw new Error(`API Error (${response.status})`);
+                        const data = await response.json();
+                        if (data.error) throw new Error(data.error.message);
+                        
+                        const imagePart = data.candidates[0].content.parts.find(part => part.inlineData);
+                        return `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
+                    });
+
+                    const results = await Promise.all(promises);
+                    setCombineResults(results);
+                } catch (error) {
+                    alert(`Error: ${error.message}`);
+                } finally {
+                    setCombineLoading(false);
+                }
+            };
+
+            const downloadCombine = (index) => {
+                const link = document.createElement('a');
+                link.href = combineResults[index];
+                link.download = `combined-${index + 1}.png`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            };
+
+            // Generate handlers
+            const handleGenerate = async () => {
+                if (!genPrompt.trim()) return alert('Please enter a prompt');
+
+                setGenLoading(true);
+                setGenResults([]);
+
+                try {
+                    const aspectRatio = aspectRatioMap[genAspectRatio];
+                    const promises = Array(genSlots).fill(null).map(() =>
+                        callGeminiAPI(genPrompt, null, aspectRatio, genResolution)
+                    );
+
+                    const results = await Promise.all(promises);
+                    setGenResults(results);
+                } catch (error) {
+                    alert(`Error: ${error.message}`);
+                } finally {
+                    setGenLoading(false);
+                }
+            };
+
+            const downloadGen = (index) => {
+                const link = document.createElement('a');
+                link.href = genResults[index];
+                link.download = `generated-${index + 1}.png`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            };
+
+            return (
+                <div className="min-h-screen bg-[#1a2332] text-white p-4">
+                    <ApiKeySettings
+                        isOpen={settingsOpen}
+                        onClose={() => setSettingsOpen(false)}
+                        apiKey={apiKey}
+                        onSave={handleSaveApiKey}
+                        selectedModel={selectedModel}
+                        onModelChange={handleSaveModel}
+                        availableModels={availableModels}
+                    />
+
+                    <div className="max-w-5xl mx-auto">
+                        {/* Header */}
+                        <div className="text-center mb-6">
+                            <h1 className="text-4xl font-bold mb-2 flex items-center justify-center gap-2">
+                                🍌 Nano Banana Unleashed
+                            </h1>
+                            <h2 className="text-lg font-medium mb-1 flex items-center justify-center gap-2">
+                                <a
+                                    href="https://instagram.com/mikedubs.hi"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="hover:underline"
+                                >
+                                    Created by @mikedubs.hi
+                                </a>
+                            </h2>
+                            <button
+                                onClick={() => setSettingsOpen(true)}
+                                className="inline-flex items-center gap-2 bg-[#2a3544] hover:bg-[#344052] px-4 py-2 rounded-lg text-sm transition-colors mt-2"
+                            >
+                                <Settings className="w-4 h-4" />
+                                {apiKey ? 'API Key Configured ✓' : 'Configure API Key'}
+                            </button>
+                        </div>
+
+                        {/* Mode Tabs */}
+                        <div className="flex justify-center gap-3 mb-6">
+                            <button
+                                onClick={() => setMode('batch')}
+                                className={`mode-btn px-5 py-2.5 rounded-lg font-medium text-sm flex items-center gap-2 ${
+                                    mode === 'batch' ? 'active' : 'bg-[#2a3544] hover:bg-[#344052]'
+                                }`}
+                            >
+                                <Camera className="w-4 h-4" />
+                                Batch Editor (10)
+                            </button>
+                            <button
+                                onClick={() => setMode('generate')}
+                                className={`mode-btn px-5 py-2.5 rounded-lg font-medium text-sm flex items-center gap-2 ${
+                                    mode === 'generate' ? 'active' : 'bg-[#2a3544] hover:bg-[#344052]'
+                                }`}
+                            >
+                                <Sparkles className="w-4 h-4" />
+                                Image Generator
+                            </button>
+                            <button
+                                onClick={() => setMode('combine')}
+                                className={`mode-btn px-5 py-2.5 rounded-lg font-medium text-sm flex items-center gap-2 ${
+                                    mode === 'combine' ? 'active' : 'bg-[#2a3544] hover:bg-[#344052]'
+                                }`}
+                            >
+                                <Zap className="w-4 h-4" />
+                                Multi-Image Generator
+                            </button>
+                            <button
+                                onClick={() => setMode('multi')}
+                                className={`mode-btn px-5 py-2.5 rounded-lg font-medium text-sm flex items-center gap-2 ${
+                                    mode === 'multi' ? 'active' : 'bg-[#2a3544] hover:bg-[#344052]'
+                                }`}
+                            >
+                                <Zap className="w-4 h-4" />
+                                Multi-Image Edit
+                            </button>
+                        </div>
+
+                        {/* Description */}
+                        <p className="text-center text-slate-400 text-sm mb-6">
+                            {mode === 'batch' && 'Edit up to 10 images simultaneously with individual settings'}
+                            {mode === 'multi' && 'Upload multiple images and apply the same edits to all of them'}
+                            {mode === 'combine' && 'Combine multiple images into one cohesive output - perfect for putting logos on products, merging scenes, or creative compositions'}
+                            {mode === 'generate' && 'Create images from text descriptions using AI'}
+                        </p>
+
+                        {/* BATCH MODE */}
+                        {mode === 'batch' && (
+                            <div className="space-y-4">
+                                {/* Drop Multiple + Duplicate sections */}
+                                <div className="space-y-3">
+                                    <button
+                                        onClick={() => setDropMultiOpen(!dropMultiOpen)}
+                                        className="w-full bg-[#2a3544] hover:bg-[#344052] p-4 rounded-lg flex items-center justify-between transition-colors"
+                                    >
+                                        <div className="flex items-center gap-2 text-sm font-medium">
+                                            <Upload className="w-5 h-5 text-amber-500" />
+                                            Drop Multiple Images
+                                            <span className="text-slate-400">Upload 2-10 images at once</span>
+                                        </div>
+                                        <ChevronDown className={`w-5 h-5 transition-transform ${dropMultiOpen ? 'rotate-180' : ''}`} />
+                                    </button>
+
+                                    {dropMultiOpen && (
+                                        <div className="bg-[#2a3544] p-6 rounded-lg">
+                                            <div
+                                                onDragOver={(e) => e.preventDefault()}
+                                                onDrop={(e) => {
+                                                    e.preventDefault();
+                                                    const files = Array.from(e.dataTransfer.files);
+                                                    files.slice(0, visibleSlots).forEach((file, fileIndex) => {
+                                                        if (file.type.startsWith('image/')) {
+                                                            const reader = new FileReader();
+                                                            reader.onload = (event) => {
+                                                                setImages(prev => {
+                                                                    const updated = [...prev];
+                                                                    updated[fileIndex] = {
+                                                                        ...updated[fileIndex],
+                                                                        image: file,
+                                                                        imagePreview: event.target.result
+                                                                    };
+                                                                    return updated;
+                                                                });
+                                                            };
+                                                            reader.readAsDataURL(file);
+                                                        }
+                                                    });
+                                                }}
+                                                onClick={() => document.getElementById('bulk-upload-input')?.click()}
+                                                className="border-2 border-dashed border-slate-600 rounded-lg p-8 text-center hover:border-amber-500 transition-colors cursor-pointer"
+                                            >
+                                                <Upload className="w-12 h-12 text-slate-500 mx-auto mb-3" />
+                                                <p className="text-slate-300 mb-1">Drop images here or click to browse</p>
+                                                <p className="text-slate-500 text-sm">JPG, PNG, WebP</p>
+                                                <input
+                                                    type="file"
+                                                    multiple
+                                                    accept="image/*"
+                                                    onChange={(e) => {
+                                                        const files = Array.from(e.target.files || []);
+                                                        files.slice(0, visibleSlots).forEach((file, fileIndex) => {
+                                                            if (file.type.startsWith('image/')) {
+                                                                const reader = new FileReader();
+                                                                reader.onload = (event) => {
+                                                                    setImages(prev => {
+                                                                        const updated = [...prev];
+                                                                        updated[fileIndex] = {
+                                                                            ...updated[fileIndex],
+                                                                            image: file,
+                                                                            imagePreview: event.target.result
+                                                                        };
+                                                                        return updated;
+                                                                    });
+                                                                };
+                                                                reader.readAsDataURL(file);
+                                                            }
+                                                        });
+                                                    }}
+                                                    className="hidden"
+                                                    id="bulk-upload-input"
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <button
+                                        onClick={() => setDuplicateOpen(!duplicateOpen)}
+                                        className="w-full bg-[#2a3544] hover:bg-[#344052] p-4 rounded-lg flex items-center justify-between transition-colors"
+                                    >
+                                        <div className="flex items-center gap-2 text-sm font-medium">
+                                            <Camera className="w-5 h-5 text-amber-500" />
+                                            Duplicate One Image
+                                            <span className="text-slate-400">Fill multiple slots with copies</span>
+                                        </div>
+                                        <ChevronDown className={`w-5 h-5 transition-transform ${duplicateOpen ? 'rotate-180' : ''}`} />
+                                    </button>
+
+                                    {duplicateOpen && (
+                                        <div className="bg-[#2a3544] p-6 rounded-lg space-y-4">
+                                            {duplicatePreview ? (
+                                                <div className="flex items-center gap-4">
+                                                    <div className="relative">
+                                                        <img src={duplicatePreview} alt="Duplicate" className="w-32 h-32 object-cover rounded-lg" />
+                                                        <button
+                                                            onClick={() => {
+                                                                setDuplicateImage(null);
+                                                                setDuplicatePreview(null);
+                                                            }}
+                                                            className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 p-1 rounded-full"
+                                                        >
+                                                            <X className="w-3 h-3" />
+                                                        </button>
+                                                    </div>
+                                                    <div className="flex-1 space-y-3">
+                                                        <div>
+                                                            <label className="text-slate-400 text-xs mb-2 block">Duplicate to first:</label>
+                                                            <select
+                                                                value={duplicateCount}
+                                                                onChange={(e) => setDuplicateCount(Number(e.target.value))}
+                                                                className="w-full bg-[#1e2835] text-white rounded-lg p-2.5 border border-slate-600 text-sm"
+                                                            >
+                                                                {[...Array(visibleSlots)].map((_, i) => (
+                                                                    <option key={i + 1} value={i + 1}>
+                                                                        {i + 1} slot{i > 0 ? 's' : ''}
+                                                                    </option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
+                                                        <button
+                                                            onClick={() => {
+                                                                if (duplicateImage && duplicatePreview) {
+                                                                    const newImages = [...images];
+                                                                    for (let i = 0; i < Math.min(duplicateCount, visibleSlots); i++) {
+                                                                        newImages[i] = {
+                                                                            ...newImages[i],
+                                                                            image: duplicateImage,
+                                                                            imagePreview: duplicatePreview
+                                                                        };
+                                                                    }
+                                                                    setImages(newImages);
+                                                                    setDuplicateImage(null);
+                                                                    setDuplicatePreview(null);
+                                                                    setDuplicateOpen(false);
+                                                                }
+                                                            }}
+                                                            className="w-full bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-medium"
+                                                        >
+                                                            Duplicate to {duplicateCount} Slot{duplicateCount > 1 ? 's' : ''}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div
+                                                    onDragOver={(e) => e.preventDefault()}
+                                                    onDrop={(e) => {
+                                                        e.preventDefault();
+                                                        const file = e.dataTransfer.files?.[0];
+                                                        if (file && file.type.startsWith('image/')) {
+                                                            setDuplicateImage(file);
+                                                            const reader = new FileReader();
+                                                            reader.onload = (event) => setDuplicatePreview(event.target.result);
+                                                            reader.readAsDataURL(file);
+                                                        }
+                                                    }}
+                                                    onClick={() => duplicateInputRef.current?.click()}
+                                                    className="border-2 border-dashed border-slate-600 rounded-lg p-8 text-center hover:border-amber-500 transition-colors cursor-pointer"
+                                                >
+                                                    <Camera className="w-12 h-12 text-slate-500 mx-auto mb-3" />
+                                                    <p className="text-slate-300 mb-1">Drop one image to duplicate</p>
+                                                    <p className="text-slate-500 text-sm">Choose how many slots to fill after uploading</p>
+                                                    <input
+                                                        ref={duplicateInputRef}
+                                                        type="file"
+                                                        accept="image/*"
+                                                        onChange={(e) => {
+                                                            const file = e.target.files?.[0];
+                                                            if (file) {
+                                                                setDuplicateImage(file);
+                                                                const reader = new FileReader();
+                                                                reader.onload = (event) => setDuplicatePreview(event.target.result);
+                                                                reader.readAsDataURL(file);
+                                                            }
+                                                        }}
+                                                        className="hidden"
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Ready/Completed Status */}
+                                <div className="flex items-center justify-center gap-6 text-sm py-3">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-2 h-2 rounded-full bg-slate-500"></div>
+                                        <span className="text-slate-400">
+                                            {images.slice(0, visibleSlots).filter(img => img.prompt.trim() && !img.loading && !img.result).length} Ready
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <CheckCircle className="w-4 h-4 text-green-500" />
+                                        <span className="text-slate-400">
+                                            {images.slice(0, visibleSlots).filter(img => img.result).length} Completed
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Process All Button */}
+                                <button 
+                                    onClick={async () => {
+                                        const readyImages = images.slice(0, visibleSlots)
+                                            .map((img, idx) => ({ img, idx }))
+                                            .filter(({ img }) => img.prompt.trim() && !img.loading && !img.result);
+                                        
+                                        for (const { idx } of readyImages) {
+                                            await handleEdit(idx);
+                                        }
+                                    }}
+                                    disabled={images.slice(0, visibleSlots).filter(img => img.prompt.trim() && !img.loading && !img.result).length === 0}
+                                    className="w-full bg-[#3d4a5e] hover:bg-[#4a5770] disabled:opacity-50 disabled:cursor-not-allowed text-white py-3 rounded-lg font-medium flex items-center justify-center gap-2"
+                                >
+                                    <Zap className="w-5 h-5" />
+                                    Process All Images ({images.slice(0, visibleSlots).filter(img => img.prompt.trim() && !img.loading && !img.result).length})
+                                </button>
+
+                                {/* Image Slots */}
+                                {images.slice(0, visibleSlots).map((slot, index) => (
+                                    <div key={slot.id} className="bg-[#2a3544] rounded-lg p-5">
+                                        <h3 className="text-white font-semibold mb-4">Image {index + 1}</h3>
+                                        
+                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                                            <div className="space-y-4">
+                                                {slot.imagePreview ? (
+                                                    <div className="relative">
+                                                        <img src={slot.imagePreview} alt="Preview" className="w-full h-48 object-cover rounded-lg" />
+                                                        <button
+                                                            onClick={() => {
+                                                                const newImages = [...images];
+                                                                newImages[index] = { ...newImages[index], image: null, imagePreview: null };
+                                                                setImages(newImages);
+                                                            }}
+                                                            className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 p-1.5 rounded-full"
+                                                        >
+                                                            <X className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <label className="block border-2 border-dashed border-slate-600 rounded-lg p-6 text-center cursor-pointer hover:border-amber-500 transition-colors">
+                                                        <Upload className="w-10 h-10 text-slate-500 mx-auto mb-2" />
+                                                        <span className="text-slate-400 text-sm">Click or drag image here</span>
+                                                        <p className="text-slate-600 text-xs mt-1">JPG, PNG, WebP</p>
+                                                        <input
+                                                            type="file"
+                                                            accept="image/*"
+                                                            onChange={(e) => handleFileChange(index, e)}
+                                                            className="hidden"
+                                                        />
+                                                    </label>
+                                                )}
+
+                                                <textarea
+                                                    value={slot.prompt}
+                                                    onChange={(e) => {
+                                                        const newImages = [...images];
+                                                        newImages[index].prompt = e.target.value;
+                                                        setImages(newImages);
+                                                    }}
+                                                    placeholder="Describe your editing instructions..."
+                                                    className="w-full bg-[#1e2835] text-white rounded-lg p-3 border border-slate-600 focus:border-amber-500 focus:outline-none text-sm min-h-[80px]"
+                                                />
+
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <div>
+                                                        <label className="text-slate-400 text-xs mb-1.5 block">Aspect Ratio</label>
+                                                        <select
+                                                            value={slot.aspectRatio}
+                                                            onChange={(e) => {
+                                                                const newImages = [...images];
+                                                                newImages[index].aspectRatio = e.target.value;
+                                                                setImages(newImages);
+                                                            }}
+                                                            className="w-full bg-[#1e2835] text-white rounded-lg p-2.5 border border-slate-600 text-sm"
+                                                        >
+                                                            <option value="auto">Auto</option>
+                                                            <option value="1:1">1:1</option>
+                                                            <option value="16:9">16:9</option>
+                                                            <option value="9:16">9:16</option>
+                                                            <option value="4:3">4:3</option>
+                                                            <option value="3:4">3:4</option>
+                                                        </select>
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-slate-400 text-xs mb-1.5 block">Resolution</label>
+                                                        <select
+                                                            value={slot.resolution}
+                                                            onChange={(e) => {
+                                                                const newImages = [...images];
+                                                                newImages[index].resolution = e.target.value;
+                                                                setImages(newImages);
+                                                            }}
+                                                            className="w-full bg-[#1e2835] text-white rounded-lg p-2.5 border border-slate-600 text-sm"
+                                                        >
+                                                            <option value="1K">1K</option>
+                                                            <option value="2K">2K</option>
+                                                            <option value="4K">4K</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+
+                                                {!slot.loading && (
+                                                    <button
+                                                        onClick={() => handleEdit(index)}
+                                                        disabled={!slot.prompt.trim()}
+                                                        className="w-full bg-[#3d4a5e] hover:bg-[#4a5770] disabled:opacity-50 text-white font-medium py-2.5 rounded-lg flex items-center justify-center gap-2 text-sm"
+                                                    >
+                                                        <Camera className="w-4 h-4" />
+                                                        Process This Image
+                                                    </button>
+                                                )}
+                                            </div>
+
+                                            <div className="flex items-center justify-center">
+                                                {slot.loading && (
+                                                    <div className="text-center">
+                                                        <Loader2 className="w-12 h-12 text-amber-500 mx-auto mb-3 animate-spin" />
+                                                        <p className="text-slate-400 text-sm">Processing...</p>
+                                                    </div>
+                                                )}
+
+                                                {slot.result && !slot.loading && (
+                                                    <div className="space-y-3 w-full">
+                                                        <img src={slot.result} alt="Result" className="w-full rounded-lg" />
+                                                        <button
+                                                            onClick={() => downloadResult(index)}
+                                                            className="w-full bg-green-500 hover:bg-green-600 text-white font-medium py-2.5 rounded-lg flex items-center justify-center gap-2 text-sm"
+                                                        >
+                                                            <Download className="w-4 h-4" />
+                                                            Download
+                                                        </button>
+                                                    </div>
+                                                )}
+
+                                                {!slot.loading && !slot.result && (
+                                                    <div className="text-center text-slate-500">
+                                                        <Camera className="w-16 h-16 mx-auto mb-2 opacity-30" />
+                                                        <p className="text-sm">Result will appear here</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* Batch Mode: Slot Count Selector */}
+                        {mode === 'batch' && (
+                            <div className="flex justify-center mt-6">
+                                <div className="inline-flex items-center gap-3 bg-[#2a3544] px-5 py-3 rounded-lg">
+                                    <label className="text-slate-300 text-sm">Number of Image Slots:</label>
+                                    <select
+                                        value={visibleSlots}
+                                        onChange={(e) => setVisibleSlots(Number(e.target.value))}
+                                        className="bg-[#1e2835] text-white rounded-lg px-3 py-1.5 text-sm border border-slate-600"
+                                    >
+                                        {[1,2,3,4,5,6,7,8,9,10].map(n => (
+                                            <option key={n} value={n}>
+                                                {n} {n === 1 ? 'Slot' : 'Slots'}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* MULTI-EDIT MODE */}
+                        {/* GENERATE MODE */}
+                        {mode === 'generate' && (
+                            <div className="bg-[#2a3544] rounded-lg p-6 max-w-3xl mx-auto">
+                                <div className="space-y-5">
+                                    <div>
+                                        <label className="text-white text-sm font-medium mb-2 block">Image Description</label>
+                                        <textarea
+                                            value={genPrompt}
+                                            onChange={(e) => setGenPrompt(e.target.value)}
+                                            placeholder="A photorealistic sunset over mountains with dramatic purple and orange clouds, golden hour lighting, cinematic composition..."
+                                            className="w-full bg-[#1e2835] text-white rounded-lg p-3 border border-slate-600 focus:border-amber-500 focus:outline-none text-sm min-h-[120px]"
+                                        />
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="text-slate-400 text-xs mb-2 block">Aspect Ratio</label>
+                                            <select
+                                                value={genAspectRatio}
+                                                onChange={(e) => setGenAspectRatio(e.target.value)}
+                                                className="w-full bg-[#1e2835] text-white rounded-lg p-3 border border-slate-600 text-sm"
+                                            >
+                                                <option value="auto">Auto</option>
+                                                <option value="1:1">1:1</option>
+                                                <option value="16:9">16:9</option>
+                                                <option value="9:16">9:16</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="text-slate-400 text-xs mb-2 block">Resolution</label>
+                                            <select
+                                                value={genResolution}
+                                                onChange={(e) => setGenResolution(e.target.value)}
+                                                className="w-full bg-[#1e2835] text-white rounded-lg p-3 border border-slate-600 text-sm"
+                                            >
+                                                <option value="4K">4K (Recommended)</option>
+                                                <option value="2K">2K</option>
+                                                <option value="1K">1K</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    {!genLoading && (
+                                        <button
+                                            onClick={handleGenerate}
+                                            disabled={!genPrompt.trim()}
+                                            className="w-full bg-[#3d4a5e] hover:bg-[#4a5770] disabled:opacity-50 text-white font-medium py-3 rounded-lg flex items-center justify-center gap-2"
+                                        >
+                                            <Sparkles className="w-5 h-5" />
+                                            Generate Image
+                                        </button>
+                                    )}
+
+                                    {genLoading && (
+                                        <div className="text-center py-8">
+                                            <Loader2 className="w-16 h-16 text-amber-500 mx-auto mb-3 animate-spin" />
+                                            <p className="text-white font-medium">Generating {genSlots} image{genSlots > 1 ? 's' : ''}...</p>
+                                        </div>
+                                    )}
+
+                                    {genResults.length > 0 && (
+                                        <div className="space-y-3 mt-6">
+                                            {genResults.map((result, idx) => (
+                                                <div key={idx} className="space-y-2">
+                                                    <img src={result} alt={`Generated ${idx + 1}`} className="w-full rounded-lg" />
+                                                    <button
+                                                        onClick={() => downloadGen(idx)}
+                                                        className="w-full bg-green-500 hover:bg-green-600 text-white py-2.5 rounded-lg flex items-center justify-center gap-2"
+                                                    >
+                                                        <Download className="w-4 h-4" />
+                                                        Download
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* COMBINE MODE */}
+                        {mode === 'combine' && (
+                            <div className="bg-[#2a3544] rounded-lg p-6">
+                                <div className="space-y-5">
+                                    {/* Image Grid - Show uploaded images */}
+                                    {combineImagePreviews.length > 0 && (
+                                        <div>
+                                            <div className="flex items-center justify-between mb-3">
+                                                <label className="text-white text-sm font-medium">
+                                                    {combineImagePreviews.length} Image{combineImagePreviews.length > 1 ? 's' : ''} to Combine
+                                                </label>
+                                                <button
+                                                    onClick={() => {
+                                                        setCombineImages([]);
+                                                        setCombineImagePreviews([]);
+                                                    }}
+                                                    className="text-red-400 hover:text-red-300 text-sm flex items-center gap-1"
+                                                >
+                                                    <X className="w-4 h-4" />
+                                                    Clear All
+                                                </button>
+                                            </div>
+                                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-4">
+                                                {combineImagePreviews.map((preview, idx) => (
+                                                    <div key={idx} className="relative group">
+                                                        <img 
+                                                            src={preview} 
+                                                            alt={`Image ${idx + 1}`} 
+                                                            className="w-full h-32 object-cover rounded-lg border border-slate-600"
+                                                        />
+                                                        <div className="absolute top-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded-full font-semibold">
+                                                            #{idx + 1}
+                                                        </div>
+                                                        <button
+                                                            onClick={() => {
+                                                                setCombineImages(prev => prev.filter((_, i) => i !== idx));
+                                                                setCombineImagePreviews(prev => prev.filter((_, i) => i !== idx));
+                                                            }}
+                                                            className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                                        >
+                                                            <X className="w-3 h-3" />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Upload Area */}
+                                    <div
+                                        onDragOver={(e) => e.preventDefault()}
+                                        onDrop={(e) => {
+                                            e.preventDefault();
+                                            const files = Array.from(e.dataTransfer.files);
+                                            const imageFiles = files.filter(f => f.type.startsWith('image/')).slice(0, 8 - combineImages.length);
+                                            
+                                            imageFiles.forEach((file) => {
+                                                const reader = new FileReader();
+                                                reader.onload = (event) => {
+                                                    setCombineImages(prev => [...prev, file]);
+                                                    setCombineImagePreviews(prev => [...prev, event.target.result]);
+                                                };
+                                                reader.readAsDataURL(file);
+                                            });
+                                        }}
+                                        onClick={() => document.getElementById('combine-upload')?.click()}
+                                        className="block border-2 border-dashed border-slate-600 rounded-lg p-8 text-center cursor-pointer hover:border-purple-500 transition-colors"
+                                    >
+                                        <Upload className="w-12 h-12 text-purple-400 mx-auto mb-2" />
+                                        <p className="text-white font-medium mb-1">
+                                            {combineImagePreviews.length > 0 ? 'Add More Images' : 'Drop Images Here to Combine'}
+                                        </p>
+                                        <p className="text-slate-400 text-sm mb-1">or click to browse</p>
+                                        <p className="text-slate-500 text-xs">
+                                            {combineImagePreviews.length > 0 
+                                                ? `${combineImagePreviews.length}/8 images uploaded` 
+                                                : 'Upload 2-8 images to merge into one'}
+                                        </p>
+                                        <input
+                                            id="combine-upload"
+                                            type="file"
+                                            multiple
+                                            accept="image/*"
+                                            onChange={(e) => {
+                                                const files = Array.from(e.target.files || []);
+                                                const imageFiles = files.filter(f => f.type.startsWith('image/')).slice(0, 8 - combineImages.length);
+                                                
+                                                imageFiles.forEach((file) => {
+                                                    const reader = new FileReader();
+                                                    reader.onload = (event) => {
+                                                        setCombineImages(prev => [...prev, file]);
+                                                        setCombineImagePreviews(prev => [...prev, event.target.result]);
+                                                    };
+                                                    reader.readAsDataURL(file);
+                                                });
+                                            }}
+                                            className="hidden"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="text-white text-sm font-medium mb-2 block">How to Combine the Images</label>
+                                        <textarea
+                                            value={combinePrompt}
+                                            onChange={(e) => setCombinePrompt(e.target.value)}
+                                            placeholder="Combine these images into one scene... Examples:
+• 'Put the logo from image 1 on the product in image 2 in a metallic style'
+• 'Merge all these people into one group photo at a beach sunset'
+• 'Place the furniture from images 1-3 into the room from image 4'"
+                                            className="w-full bg-[#1e2835] text-white rounded-lg p-3 border border-slate-600 focus:border-amber-500 focus:outline-none text-sm min-h-[120px]"
+                                        />
+                                        <div className="flex items-start gap-2 mt-2 text-xs text-slate-500">
+                                            <Lightbulb className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                                            <span>Be specific about which images to use and how to combine them</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="text-slate-400 text-xs mb-2 block">Output Aspect Ratio</label>
+                                            <select
+                                                value={combineAspectRatio}
+                                                onChange={(e) => setCombineAspectRatio(e.target.value)}
+                                                className="w-full bg-[#1e2835] text-white rounded-lg p-3 border border-slate-600 text-sm"
+                                            >
+                                                <option value="16:9">16:9 (Widescreen)</option>
+                                                <option value="1:1">1:1</option>
+                                                <option value="9:16">9:16</option>
+                                                <option value="4:3">4:3</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="text-slate-400 text-xs mb-2 block">Output Resolution</label>
+                                            <select
+                                                value={combineResolution}
+                                                onChange={(e) => setCombineResolution(e.target.value)}
+                                                className="w-full bg-[#1e2835] text-white rounded-lg p-3 border border-slate-600 text-sm"
+                                            >
+                                                <option value="4K">4K (Recommended)</option>
+                                                <option value="2K">2K</option>
+                                                <option value="1K">1K</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    {!combineLoading && (
+                                        <button
+                                            onClick={handleCombine}
+                                            disabled={combineImages.length === 0 || !combinePrompt.trim()}
+                                            className="w-full bg-[#3d4a5e] hover:bg-[#4a5770] disabled:opacity-50 text-white font-medium py-3 rounded-lg flex items-center justify-center gap-2"
+                                        >
+                                            <Zap className="w-5 h-5" />
+                                            Combine {combineImages.length} Image{combineImages.length === 1 ? '' : 's'} into One
+                                        </button>
+                                    )}
+
+                                    {combineLoading && (
+                                        <div className="text-center py-8">
+                                            <Loader2 className="w-16 h-16 text-amber-500 mx-auto mb-3 animate-spin" />
+                                            <p className="text-white font-medium">Combining images...</p>
+                                        </div>
+                                    )}
+
+                                    {combineResults.length > 0 && (
+                                        <div className="space-y-3 mt-6">
+                                            {combineResults.map((result, idx) => (
+                                                <div key={idx} className="space-y-2">
+                                                    <img src={result} alt={`Combined ${idx + 1}`} className="w-full rounded-lg" />
+                                                    <button
+                                                        onClick={() => downloadCombine(idx)}
+                                                        className="w-full bg-green-500 hover:bg-green-600 text-white py-2.5 rounded-lg flex items-center justify-center gap-2"
+                                                    >
+                                                        <Download className="w-4 h-4" />
+                                                        Download
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {mode === 'multi' && (
+                            <div className="bg-[#2a3544] rounded-lg p-6">
+                                <div className="space-y-5">
+                                    {multiImagePreview ? (
+                                        <div className="relative inline-block">
+                                            <img src={multiImagePreview} alt="Source" className="w-full max-h-80 object-contain rounded-lg" />
+                                            <button
+                                                onClick={() => {
+                                                    setMultiImage(null);
+                                                    setMultiImagePreview(null);
+                                                }}
+                                                className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 p-2 rounded-full"
+                                            >
+                                                <X className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div
+                                            onDragOver={(e) => e.preventDefault()}
+                                            onDrop={(e) => {
+                                                e.preventDefault();
+                                                const file = e.dataTransfer.files?.[0];
+                                                if (file && file.type.startsWith('image/')) {
+                                                    setMultiImage(file);
+                                                    const reader = new FileReader();
+                                                    reader.onload = (event) => setMultiImagePreview(event.target.result);
+                                                    reader.readAsDataURL(file);
+                                                }
+                                            }}
+                                            onClick={() => multiInputRef.current?.click()}
+                                            className="block border-2 border-dashed border-slate-600 rounded-lg p-12 text-center cursor-pointer hover:border-blue-500 transition-colors"
+                                        >
+                                            <Upload className="w-16 h-16 text-blue-400 mx-auto mb-3" />
+                                            <p className="text-white font-medium mb-1">Drop Images Here</p>
+                                            <p className="text-slate-400 text-sm mb-1">or click to browse</p>
+                                            <p className="text-slate-500 text-xs">Upload 2-10 images to edit with the same prompt</p>
+                                            <input
+                                                ref={multiInputRef}
+                                                type="file"
+                                                accept="image/*"
+                                                onChange={handleMultiFileChange}
+                                                className="hidden"
+                                            />
+                                        </div>
+                                    )}
+
+                                    <div>
+                                        <label className="text-white text-sm font-medium mb-2 block">Edit Instructions (Applied to All Images)</label>
+                                        <textarea
+                                            value={multiPrompt}
+                                            onChange={(e) => setMultiPrompt(e.target.value)}
+                                            placeholder="Apply warm golden hour lighting, enhance shadows, increase contrast..."
+                                            className="w-full bg-[#1e2835] text-white rounded-lg p-3 border border-slate-600 focus:border-amber-500 focus:outline-none text-sm min-h-[100px]"
+                                        />
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="text-slate-400 text-xs mb-2 block">Aspect Ratio (All Images)</label>
+                                            <select
+                                                value={multiAspectRatio}
+                                                onChange={(e) => setMultiAspectRatio(e.target.value)}
+                                                className="w-full bg-[#1e2835] text-white rounded-lg p-3 border border-slate-600 text-sm"
+                                            >
+                                                <option value="auto">Auto (Original)</option>
+                                                <option value="1:1">1:1</option>
+                                                <option value="16:9">16:9</option>
+                                                <option value="9:16">9:16</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="text-slate-400 text-xs mb-2 block">Resolution (All Images)</label>
+                                            <select
+                                                value={multiResolution}
+                                                onChange={(e) => setMultiResolution(e.target.value)}
+                                                className="w-full bg-[#1e2835] text-white rounded-lg p-3 border border-slate-600 text-sm"
+                                            >
+                                                <option value="4K">4K (Recommended)</option>
+                                                <option value="2K">2K</option>
+                                                <option value="1K">1K</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    {!multiLoading && (
+                                        <button
+                                            onClick={handleMultiEdit}
+                                            disabled={!multiImage || !multiPrompt.trim()}
+                                            className="w-full bg-[#3d4a5e] hover:bg-[#4a5770] disabled:opacity-50 text-white font-medium py-3 rounded-lg flex items-center justify-center gap-2"
+                                        >
+                                            <Zap className="w-5 h-5" />
+                                            Process {multiImage ? '1' : '0'} Image{multiImage ? '' : 's'}
+                                        </button>
+                                    )}
+
+                                    {multiLoading && (
+                                        <div className="text-center py-8">
+                                            <Loader2 className="w-16 h-16 text-amber-500 mx-auto mb-3 animate-spin" />
+                                            <p className="text-white font-medium">Processing {multiSlots} variations...</p>
+                                        </div>
+                                    )}
+
+                                    {multiResults.length > 0 && (
+                                        <div className="grid grid-cols-2 gap-3 mt-6">
+                                            {multiResults.map((result, idx) => (
+                                                <div key={idx} className="space-y-2">
+                                                    <img src={result} alt={`Result ${idx + 1}`} className="w-full rounded-lg" />
+                                                    <button
+                                                        onClick={() => downloadMulti(idx)}
+                                                        className="w-full bg-green-500 hover:bg-green-600 text-white py-2 rounded-lg text-sm flex items-center justify-center gap-2"
+                                                    >
+                                                        <Download className="w-4 h-4" />
+                                                        Download
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Variations/Slots Selector */}
+                        {mode !== 'batch' && (
+                            <div className="flex justify-center mt-6">
+                                <div className="inline-flex items-center gap-3 bg-[#2a3544] px-5 py-3 rounded-lg">
+                                    <label className="text-slate-300 text-sm">
+                                        {mode === 'multi' && 'Variations per Image:'}
+                                        {mode === 'combine' && 'Combined Variations:'}
+                                        {mode === 'generate' && 'Number of Generations:'}
+                                    </label>
+                                    <select
+                                        value={
+                                            mode === 'multi' ? multiSlots :
+                                            mode === 'combine' ? combineSlots :
+                                            genSlots
+                                        }
+                                        onChange={(e) => {
+                                            const val = Number(e.target.value);
+                                            if (mode === 'multi') setMultiSlots(val);
+                                            else if (mode === 'combine') setCombineSlots(val);
+                                            else setGenSlots(val);
+                                        }}
+                                        className="bg-[#1e2835] text-white rounded-lg px-3 py-1.5 text-sm border border-slate-600"
+                                    >
+                                        {[1,2,3,4,5,6,7,8,9,10].map(n => (
+                                            <option key={n} value={n}>
+                                                {n} {n === 1 ? 'Variation' : 'Variations'}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Footer */}
+                        <div className="text-center mt-6 text-slate-500 text-xs flex items-center justify-center gap-1">
+                            <Zap className="w-3 h-3 text-amber-500" />
+                            <span>Powered by {availableModels.find(m => m.id === selectedModel)?.name || 'Google Gemini 3 Pro Image Preview'}</span>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<GeminiImageTools />);
+    </script>
+</body>
+</html>
