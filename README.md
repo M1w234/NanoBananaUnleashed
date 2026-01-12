@@ -1,4 +1,4 @@
-[README.md](https://github.com/user-attachments/files/24564137/README.md)
+[README (2).md](https://github.com/user-attachments/files/24564354/README.2.md)
 # 🍌 Nana Banana Unleashed - Gemini Image Tools
 
 A powerful, browser-based image editing and generation tool powered by Google's Gemini AI. Edit existing images with natural language prompts or generate stunning new images from scratch - all running entirely in your browser.
@@ -8,13 +8,17 @@ A powerful, browser-based image editing and generation tool powered by Google's 
 ![React](https://img.shields.io/badge/React-18-61dafb)
 ![Gemini](https://img.shields.io/badge/Gemini-AI-orange)
 
-## ✨ Features
+**[🚀 Try it Now](https://m1w234.github.io/NanoBananaUnleashed/)**
 
-### 🎨 Dual Mode Operation
+---
+
+## Features
+
+### Dual Mode Operation
 - **Edit Mode**: Transform existing images using AI-powered edits with natural language prompts
 - **Generate Mode**: Create original images from text descriptions
 
-### 🚀 Core Capabilities
+### Core Capabilities
 - **Drag & Drop Interface**: Intuitive image upload with visual feedback
 - **Multiple AI Models**: Choose from various Gemini models (Flash 2.0, Exp-1206, Pro-002, Flash-8B)
 - **History Tracking**: Automatically saves all generations and edits with timestamps
@@ -23,14 +27,16 @@ A powerful, browser-based image editing and generation tool powered by Google's 
 - **Batch Download**: Export individual images or entire collections
 - **Persistent Storage**: IndexedDB integration ensures your work survives browser sessions
 
-### 🎯 User Experience
+### User Experience
 - **No Backend Required**: Runs entirely in the browser - no server setup needed
 - **Secure API Key Storage**: Your credentials stay local in your browser
 - **Responsive Design**: Beautiful interface built with Tailwind CSS
 - **Instant Feedback**: Real-time loading states and error handling
 - **Smart History**: Chronologically organized with source tracking
 
-## 🛠️ Technology Stack
+---
+
+## Technology Stack
 
 - **Frontend Framework**: React 18
 - **Styling**: Tailwind CSS
@@ -39,23 +45,27 @@ A powerful, browser-based image editing and generation tool powered by Google's 
 - **Icons**: Lucide React
 - **Build**: Single-file HTML application (no build step required!)
 
-## 📋 Prerequisites
+---
+
+## Prerequisites
 
 Before you begin, you'll need:
 - A modern web browser (Chrome, Firefox, Safari, Edge)
 - A Google Gemini API key ([Get one here](https://aistudio.google.com/app/apikey))
 
-## 🚀 Getting Started
+---
 
-### Quick Start
-1. **Open Project Link**
-(https://m1w234.github.io/NanoBananaUnleashed/)](https://m1w234.github.io/NanoBananaUnleashed/)
+## Getting Started
 
-or
+### Option 1: Use the Live Version
+
+**Visit the live app**: [https://m1w234.github.io/NanoBananaUnleashed/](https://m1w234.github.io/NanoBananaUnleashed/)
+
+### Option 2: Run Locally
 
 1. **Clone or Download** this repository
    ```bash
-   git clone https://github.com/yourusername/gemini-image-tools.git
+   git clone https://github.com/m1w234/NanoBananaUnleashed.git
    ```
 
 2. **Open the HTML file** in your browser
@@ -71,9 +81,11 @@ or
 4. **Start Creating!**
    - Switch between Edit and Generate modes
    - Upload images or describe what you want to create
-   - Watch the magic happen ✨
+   - Watch the magic happen
 
-## 📖 Usage Guide
+---
+
+## Usage Guide
 
 ### Editing Images
 
@@ -101,7 +113,9 @@ or
 - **Download**: Click download buttons to save individual images
 - **Preview**: Click any image for a full-screen view
 
-## 🎯 Available Models
+---
+
+## Available Models
 
 | Model | Best For | Speed | Quality |
 |-------|----------|-------|---------|
@@ -110,14 +124,18 @@ or
 | Gemini Pro-002 | Highest quality | ⚡ | ⭐⭐⭐⭐⭐ |
 | Gemini Flash-8B | Ultra-fast testing | ⚡⚡⚡⚡ | ⭐⭐ |
 
-## 🔐 Privacy & Security
+---
+
+## Privacy & Security
 
 - **API keys are stored locally** in your browser's LocalStorage
 - **No data is sent to external servers** except Google's Gemini API
 - **Images are stored in IndexedDB** on your device only
 - **No tracking or analytics** - your privacy is respected
 
-## 🎨 Customization
+---
+
+## Customization
 
 The application is built as a single HTML file, making it easy to customize:
 
@@ -125,7 +143,9 @@ The application is built as a single HTML file, making it easy to customize:
 - **Models**: Update the `availableModels` array to add/remove AI models
 - **Features**: The React component structure makes adding new features straightforward
 
-## 🐛 Troubleshooting
+---
+
+## Troubleshooting
 
 ### API Key Issues
 - Ensure your API key is valid and active
@@ -142,7 +162,9 @@ The application is built as a single HTML file, making it easy to customize:
 - Try rephrasing your prompt
 - Switch to a different model
 
-## 🤝 Contributing
+---
+
+## Contributing
 
 Contributions are welcome! Here's how you can help:
 
@@ -152,7 +174,9 @@ Contributions are welcome! Here's how you can help:
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-## 📝 Roadmap
+---
+
+## Roadmap
 
 - [ ] Add batch image processing
 - [ ] Implement style presets
@@ -162,27 +186,33 @@ Contributions are welcome! Here's how you can help:
 - [ ] Add undo/redo functionality
 - [ ] Implement image-to-image variations
 
-## 📄 License
+---
+
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
+---
+
+## Acknowledgments
 
 - **Google Gemini** for providing the powerful AI capabilities
 - **React Team** for the amazing framework
 - **Tailwind CSS** for the beautiful styling system
 - **Lucide** for the clean, modern icons
 
-## 📧 Contact
+---
 
-Michael Wong - [Team Wong Hawaii](https://teamwonghawaii.com)
+## Contact
 
-Project Link: (https://m1w234.github.io/NanoBananaUnleashed/)](https://m1w234.github.io/NanoBananaUnleashed/)
+**Michael Wong** - [Team Wong Hawaii](https://teamwonghawaii.com)
+
+**Project Link**: [https://m1w234.github.io/NanoBananaUnleashed/](https://m1w234.github.io/NanoBananaUnleashed/)
 
 ---
 
 <div align="center">
-  <strong>⚡ Powered by Google Gemini AI ⚡</strong>
+  <strong>Powered by Google Gemini AI</strong>
   <br>
   Made with ❤️ for creators and dreamers
 </div>
