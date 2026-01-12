@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gemini Image Tools - Edit & Generate</title>
+    <title>🍌 Nano Banana Unleashed</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍌</text></svg>">
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -1793,7 +1794,7 @@
                         <div className="text-center mb-8">
                             <div className="flex items-center justify-center gap-3 mb-4 relative">
                                 <span className="text-5xl">🍌</span>
-                                <h1 className="text-4xl font-bold text-white">Gemini Image Tools</h1>
+                                <h1 className="text-4xl font-bold text-white">Nano Banana Unleashed</h1>
                                 <button
                                     onClick={() => setSettingsOpen(true)}
                                     className={`absolute right-0 p-3 rounded-lg transition-all ${
@@ -2104,18 +2105,6 @@
                                                                     title="Preview Full Size"
                                                                 >
                                                                     <Camera className="w-2.5 h-2.5" />
-                                                                </button>
-                                                                <button
-                                                                    onClick={(e) => { 
-                                                                        e.stopPropagation(); 
-                                                                        if (mode === 'edit') useFromCollectionForBatch(img);
-                                                                        else if (mode === 'multi') useFromCollectionForMulti(img);
-                                                                        else if (mode === 'combine') useFromCollectionForCombine(img);
-                                                                    }}
-                                                                    className="bg-amber-500 hover:bg-amber-600 text-white p-1 rounded"
-                                                                    title="Use in current mode"
-                                                                >
-                                                                    <Plus className="w-2.5 h-2.5" />
                                                                 </button>
                                                                 <button
                                                                     onClick={(e) => { e.stopPropagation(); downloadFromCollection(img); }}
@@ -3580,7 +3569,7 @@
                     {/* Image Preview Modal */}
                     {modalOpen && modalImage && (
                         <div 
-                            className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
+                            className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 cursor-pointer"
                             onClick={closeModal}
                         >
                             <div className="relative max-w-7xl max-h-[95vh] w-full h-full flex flex-col">
@@ -3598,20 +3587,19 @@
                                 {/* Modal Image */}
                                 <div 
                                     className="flex-1 flex items-center justify-center overflow-auto"
-                                    onClick={(e) => e.stopPropagation()}
                                 >
                                     <img
                                         src={modalImage}
                                         alt={modalTitle}
-                                        className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
-                                        onClick={(e) => e.stopPropagation()}
+                                        className="max-w-full max-h-full object-contain rounded-lg shadow-2xl cursor-pointer"
                                     />
                                 </div>
                                 
                                 {/* Modal Footer */}
                                 <div className="mt-4 text-center">
                                     <button
-                                        onClick={() => {
+                                        onClick={(e) => {
+                                            e.stopPropagation();
                                             const link = document.createElement('a');
                                             link.href = modalImage;
                                             link.download = `image-${Date.now()}.jpg`;
@@ -3624,7 +3612,7 @@
                                         <Download className="w-5 h-5" />
                                         Download Full Size
                                     </button>
-                                    <p className="text-slate-400 text-sm mt-2">Click outside or press ESC to close</p>
+                                    <p className="text-slate-400 text-sm mt-2">Click anywhere or press ESC to close</p>
                                 </div>
                             </div>
                         </div>
