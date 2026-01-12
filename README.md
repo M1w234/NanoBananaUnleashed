@@ -49,7 +49,7 @@ Before you begin, you'll need:
 
 ### Quick Start
 1. **Open Project Link**
-[[https://github.com/yourusername/gemini-image-tools](https://m1w234.github.io/NanoBananaUnleashed/)](https://m1w234.github.io/NanoBananaUnleashed/)
+(https://m1w234.github.io/NanoBananaUnleashed/)](https://m1w234.github.io/NanoBananaUnleashed/)
 
 or
 
@@ -177,7 +177,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 Michael Wong - [Team Wong Hawaii](https://teamwonghawaii.com)
 
-Project Link: [[https://github.com/yourusername/gemini-image-tools](https://m1w234.github.io/NanoBananaUnleashed/)](https://m1w234.github.io/NanoBananaUnleashed/)
+Project Link: (https://m1w234.github.io/NanoBananaUnleashed/)](https://m1w234.github.io/NanoBananaUnleashed/)
 
 ---
 
