@@ -248,6 +248,12 @@
             </svg>
         );
 
+        const RefreshCw = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+        );
+
         const Trash = ({ className }) => (
             <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -611,6 +617,7 @@
                 error: null
             }]);
             const [visibleMultiSlots, setVisibleMultiSlots] = useState(1);
+            const [multiTargetSection, setMultiTargetSection] = useState(0); // Which section to add collection images to
             const multiFileInputRefs = useRef({});
             
             // Legacy state kept for compatibility
@@ -639,6 +646,7 @@
                 error: null
             }]);
             const [visibleCombineSlots, setVisibleCombineSlots] = useState(1);
+            const [combineTargetSection, setCombineTargetSection] = useState(0); // Which section to add collection images to
             const combineFileInputRefs = useRef({});
             
             // Legacy state kept for compatibility
@@ -1150,6 +1158,89 @@
             const getActiveCount = () => images.slice(0, visibleSlots).filter(img => img.image && img.prompt.trim()).length;
             const getCompletedCount = () => images.slice(0, visibleSlots).filter(img => img.results && img.results.length > 0).length;
             const getAvailableSlots = () => images.slice(0, visibleSlots).filter(img => !img.image).length;
+
+            // Helper function to add a result image to the collection
+            const addResultToCollection = (imageDataUrl, fileName) => {
+                addToCollection(imageDataUrl, fileName || `result-${Date.now()}.jpg`);
+            };
+
+            // Helper function to iterate on a result - creates new slot with result as input
+            const iterateInEditMode = (imageDataUrl) => {
+                // Also add to collection for safekeeping
+                addToCollection(imageDataUrl, `iterate-${Date.now()}.jpg`);
+                
+                // Find first empty slot or add new one
+                const emptySlotIndex = images.slice(0, visibleSlots).findIndex(img => !img.image);
+                const base64 = imageDataUrl.split(',')[1];
+                
+                if (emptySlotIndex >= 0) {
+                    // Use existing empty slot
+                    setImages(prev => prev.map((img, i) => 
+                        i === emptySlotIndex ? { ...img, image: base64, imagePreview: imageDataUrl, loading: false, results: [], error: null } : img
+                    ));
+                } else if (visibleSlots < 20) {
+                    // Add new slot and populate it
+                    const newSlotIndex = visibleSlots;
+                    setVisibleSlots(prev => prev + 1);
+                    setTimeout(() => {
+                        setImages(prev => prev.map((img, i) => 
+                            i === newSlotIndex ? { ...img, image: base64, imagePreview: imageDataUrl, loading: false, results: [], error: null } : img
+                        ));
+                    }, 50);
+                } else {
+                    alert('All slots are in use. Clear a slot first.');
+                }
+            };
+
+            // Helper to iterate in Multi-Edit mode
+            const iterateInMultiMode = (imageDataUrl) => {
+                // Also add to collection for safekeeping
+                addToCollection(imageDataUrl, `iterate-${Date.now()}.jpg`);
+                
+                const newSlot = {
+                    id: generateUniqueId(),
+                    images: [{
+                        id: generateUniqueId(),
+                        base64: imageDataUrl.split(',')[1],
+                        preview: imageDataUrl,
+                        fileName: `iterate-${Date.now()}.jpg`
+                    }],
+                    prompt: '',
+                    aspectRatio: 'auto',
+                    resolution: '4K',
+                    variations: 1,
+                    loading: false,
+                    results: [],
+                    error: null
+                };
+                setMultiSlotsArray(prev => [...prev, newSlot]);
+                setVisibleMultiSlots(prev => prev + 1);
+            };
+
+            // Helper to iterate in Combine mode
+            const iterateInCombineMode = (imageDataUrl) => {
+                // Also add to collection for safekeeping
+                addToCollection(imageDataUrl, `iterate-${Date.now()}.jpg`);
+                
+                const newSlot = {
+                    id: generateUniqueId(),
+                    images: [{
+                        id: generateUniqueId(),
+                        base64: imageDataUrl.split(',')[1],
+                        preview: imageDataUrl,
+                        fileName: `iterate-${Date.now()}.jpg`
+                    }],
+                    prompt: '',
+                    aspectRatio: '16:9',
+                    resolution: '4K',
+                    variations: 1,
+                    loading: false,
+                    results: [],
+                    error: null
+                };
+                setCombineSlotsArray(prev => [...prev, newSlot]);
+                setVisibleCombineSlots(prev => prev + 1);
+            };
 
             // === GENERATE MODE FUNCTIONS ===
             const handleGenerate = async () => {
@@ -1709,8 +1800,7 @@
                         inputs: slot.images.map(img => img.preview),
                         results
                     };
-                    setHistory(prev => [entry, ...prev].slice(0, 100));
-                    saveHistoryToDB([entry, ...history].slice(0, 100));
+                    addToHistory(entry);
                 } catch (error) {
                     updateMultiSlot(slotIndex, { loading: false, error: error.message });
                 }
@@ -2067,8 +2157,7 @@
                         sourceCount: slot.images.length,
                         results
                     };
-                    setHistory(prev => [entry, ...prev].slice(0, 100));
-                    saveHistoryToDB([entry, ...history].slice(0, 100));
+                    addToHistory(entry);
                 } catch (error) {
                     updateCombineSlot(slotIndex, { loading: false, error: error.message });
                 }
@@ -2411,6 +2500,15 @@
                                                                 alt={img.fileName}
                                                                 className="w-full aspect-square object-cover rounded border border-slate-600 hover:border-amber-500 transition-colors"
                                                             />
+                                                            {/* X button at top right */}
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); removeFromCollection(img.id); }}
+                                                                className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                                                                title="Remove"
+                                                            >
+                                                                <X className="w-2.5 h-2.5" />
+                                                            </button>
+                                                            {/* Plus and Download buttons centered */}
                                                             <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded flex items-center justify-center gap-1">
                                                                 <button
                                                                     onClick={(e) => { 
@@ -2430,13 +2528,6 @@
                                                                     title="Download"
                                                                 >
                                                                     <Download className="w-2.5 h-2.5" />
-                                                                </button>
-                                                                <button
-                                                                    onClick={(e) => { e.stopPropagation(); removeFromCollection(img.id); }}
-                                                                    className="bg-red-500 hover:bg-red-600 text-white p-1 rounded"
-                                                                    title="Remove"
-                                                                >
-                                                                    <X className="w-2.5 h-2.5" />
                                                                 </button>
                                                             </div>
                                                         </div>
@@ -2718,13 +2809,29 @@
                                                                         className="w-full rounded-lg border border-slate-600 shadow-lg cursor-pointer hover:border-amber-500 transition-colors"
                                                                         onClick={() => openImageModal(img.results[0], `Result ${index + 1}`)}
                                                                     />
-                                                                    <button
-                                                                        onClick={() => downloadImage(index, 0)}
-                                                                        className="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm"
-                                                                    >
-                                                                        <Download className="w-4 h-4" />
-                                                                        Download
-                                                                    </button>
+                                                                    <div className="flex gap-2">
+                                                                        <button
+                                                                            onClick={() => downloadImage(index, 0)}
+                                                                            className="flex-1 bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-3 rounded-lg transition-colors flex items-center justify-center gap-1.5 text-sm"
+                                                                        >
+                                                                            <Download className="w-4 h-4" />
+                                                                            Download
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => addResultToCollection(img.results[0], `edited-${index + 1}.jpg`)}
+                                                                            className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-3 rounded-lg transition-colors flex items-center justify-center gap-1.5 text-sm"
+                                                                            title="Add to Collection"
+                                                                        >
+                                                                            <Folder className="w-4 h-4" />
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => iterateInEditMode(img.results[0])}
+                                                                            className="bg-amber-500 hover:bg-amber-600 text-white font-semibold py-2 px-3 rounded-lg transition-colors flex items-center justify-center gap-1.5 text-sm"
+                                                                            title="Iterate - Edit this result"
+                                                                        >
+                                                                            <RefreshCw className="w-4 h-4" />
+                                                                        </button>
+                                                                    </div>
                                                                 </>
                                                             ) : (
                                                                 <>
@@ -2750,12 +2857,29 @@
                                                                                 <div className="absolute top-1 left-1 bg-black/60 text-white text-xs px-2 py-0.5 rounded-full">
                                                                                     #{varIdx + 1}
                                                                                 </div>
-                                                                                <button
-                                                                                    onClick={() => downloadImage(index, varIdx)}
-                                                                                    className="absolute bottom-1 right-1 bg-green-500 hover:bg-green-600 text-white p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                                                                                >
-                                                                                    <Download className="w-3 h-3" />
-                                                                                </button>
+                                                                                <div className="absolute bottom-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                                    <button
+                                                                                        onClick={() => downloadImage(index, varIdx)}
+                                                                                        className="bg-green-500 hover:bg-green-600 text-white p-1.5 rounded-lg"
+                                                                                        title="Download"
+                                                                                    >
+                                                                                        <Download className="w-3 h-3" />
+                                                                                    </button>
+                                                                                    <button
+                                                                                        onClick={() => addResultToCollection(result, `edited-${index + 1}-v${varIdx + 1}.jpg`)}
+                                                                                        className="bg-blue-500 hover:bg-blue-600 text-white p-1.5 rounded-lg"
+                                                                                        title="Add to Collection"
+                                                                                    >
+                                                                                        <Folder className="w-3 h-3" />
+                                                                                    </button>
+                                                                                    <button
+                                                                                        onClick={() => iterateInEditMode(result)}
+                                                                                        className="bg-amber-500 hover:bg-amber-600 text-white p-1.5 rounded-lg"
+                                                                                        title="Iterate"
+                                                                                    >
+                                                                                        <RefreshCw className="w-3 h-3" />
+                                                                                    </button>
+                                                                                </div>
                                                                             </div>
                                                                         ))}
                                                                     </div>
@@ -2807,7 +2931,18 @@
                                     {collectionOpen && (
                                         <div className="mt-2 bg-slate-800/50 border border-slate-700 rounded-lg p-4">
                                             <div className="flex items-center justify-between mb-3">
-                                                <p className="text-slate-400 text-sm">Click an image to preview, use + to add to a section</p>
+                                                <div className="flex items-center gap-3">
+                                                    <p className="text-slate-400 text-sm">Click to preview, + to add to:</p>
+                                                    <select
+                                                        value={multiTargetSection}
+                                                        onChange={(e) => setMultiTargetSection(Number(e.target.value))}
+                                                        className="bg-slate-700 text-white text-sm rounded px-2 py-1 border border-slate-600 focus:border-blue-500 focus:outline-none"
+                                                    >
+                                                        {Array.from({ length: visibleMultiSlots }).map((_, i) => (
+                                                            <option key={i} value={i}>Section {i + 1}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
                                                 {uploadedCollection.length > 0 && (
                                                     <div className="flex gap-2">
                                                         <button onClick={downloadAllFromCollection} className="bg-green-500 hover:bg-green-600 text-white font-semibold py-1.5 px-3 rounded-lg transition-colors flex items-center gap-1.5 text-xs">
@@ -2840,15 +2975,17 @@
                                                     {uploadedCollection.map((img) => (
                                                         <div key={img.id} className="relative group cursor-pointer" onClick={() => openImageModal(img.preview, img.fileName || 'Collection Image')}>
                                                             <img src={img.preview} alt={img.fileName} className="w-full aspect-square object-cover rounded border border-slate-600 hover:border-blue-500 transition-colors" />
+                                                            {/* X button at top right */}
+                                                            <button onClick={(e) => { e.stopPropagation(); removeFromCollection(img.id); }} className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10" title="Remove">
+                                                                <X className="w-2.5 h-2.5" />
+                                                            </button>
+                                                            {/* Plus and Download buttons centered */}
                                                             <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded flex items-center justify-center gap-1">
-                                                                <button onClick={(e) => { e.stopPropagation(); addImageToMultiSlot(0, { id: generateUniqueId(), base64: img.preview.split(',')[1], preview: img.preview, fileName: img.fileName }); }} className="bg-amber-500 hover:bg-amber-600 text-white p-1 rounded" title="Add to section">
+                                                                <button onClick={(e) => { e.stopPropagation(); addImageToMultiSlot(multiTargetSection, { id: generateUniqueId(), base64: img.preview.split(',')[1], preview: img.preview, fileName: img.fileName }); }} className="bg-amber-500 hover:bg-amber-600 text-white p-1 rounded" title={`Add to Section ${multiTargetSection + 1}`}>
                                                                     <Plus className="w-2.5 h-2.5" />
                                                                 </button>
                                                                 <button onClick={(e) => { e.stopPropagation(); downloadFromCollection(img); }} className="bg-green-500 hover:bg-green-600 text-white p-1 rounded" title="Download">
                                                                     <Download className="w-2.5 h-2.5" />
-                                                                </button>
-                                                                <button onClick={(e) => { e.stopPropagation(); removeFromCollection(img.id); }} className="bg-red-500 hover:bg-red-600 text-white p-1 rounded" title="Remove">
-                                                                    <X className="w-2.5 h-2.5" />
                                                                 </button>
                                                             </div>
                                                         </div>
@@ -3149,18 +3286,34 @@
                                                                     #{idx + 1}
                                                                 </div>
                                                             </div>
-                                                            <button
-                                                                onClick={() => {
-                                                                    const link = document.createElement('a');
-                                                                    link.href = result;
-                                                                    link.download = `multi-edit-${index + 1}-${idx + 1}-${Date.now()}.jpg`;
-                                                                    link.click();
-                                                                }}
-                                                                className="w-full bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
-                                                            >
-                                                                <Download className="w-4 h-4" />
-                                                                Download #{idx + 1}
-                                                            </button>
+                                                            <div className="flex gap-2">
+                                                                <button
+                                                                    onClick={() => {
+                                                                        const link = document.createElement('a');
+                                                                        link.href = result;
+                                                                        link.download = `multi-edit-${index + 1}-${idx + 1}-${Date.now()}.jpg`;
+                                                                        link.click();
+                                                                    }}
+                                                                    className="flex-1 bg-green-500 hover:bg-green-600 text-white py-2 px-3 rounded-lg transition-colors flex items-center justify-center gap-2"
+                                                                >
+                                                                    <Download className="w-4 h-4" />
+                                                                    Download
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => addResultToCollection(result, `multi-edit-${index + 1}-${idx + 1}.jpg`)}
+                                                                    className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-3 rounded-lg transition-colors flex items-center justify-center"
+                                                                    title="Add to Collection"
+                                                                >
+                                                                    <Folder className="w-4 h-4" />
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => iterateInMultiMode(result)}
+                                                                    className="bg-amber-500 hover:bg-amber-600 text-white py-2 px-3 rounded-lg transition-colors flex items-center justify-center"
+                                                                    title="Iterate - Create new section with this result"
+                                                                >
+                                                                    <RefreshCw className="w-4 h-4" />
+                                                                </button>
+                                                            </div>
                                                         </div>
                                                     ))}
                                                 </div>
@@ -3221,7 +3374,18 @@
                                     {collectionOpen && (
                                         <div className="mt-2 bg-slate-800/50 border border-slate-700 rounded-lg p-4">
                                             <div className="flex items-center justify-between mb-3">
-                                                <p className="text-slate-400 text-sm">Click an image to preview, use + to add to a section</p>
+                                                <div className="flex items-center gap-3">
+                                                    <p className="text-slate-400 text-sm">Click to preview, + to add to:</p>
+                                                    <select
+                                                        value={combineTargetSection}
+                                                        onChange={(e) => setCombineTargetSection(Number(e.target.value))}
+                                                        className="bg-slate-700 text-white text-sm rounded px-2 py-1 border border-slate-600 focus:border-purple-500 focus:outline-none"
+                                                    >
+                                                        {Array.from({ length: visibleCombineSlots }).map((_, i) => (
+                                                            <option key={i} value={i}>Section {i + 1}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
                                                 {uploadedCollection.length > 0 && (
                                                     <div className="flex gap-2">
                                                         <button onClick={downloadAllFromCollection} className="bg-green-500 hover:bg-green-600 text-white font-semibold py-1.5 px-3 rounded-lg transition-colors flex items-center gap-1.5 text-xs">
@@ -3254,15 +3418,17 @@
                                                     {uploadedCollection.map((img) => (
                                                         <div key={img.id} className="relative group cursor-pointer" onClick={() => openImageModal(img.preview, img.fileName || 'Collection Image')}>
                                                             <img src={img.preview} alt={img.fileName} className="w-full aspect-square object-cover rounded border border-slate-600 hover:border-purple-500 transition-colors" />
+                                                            {/* X button at top right */}
+                                                            <button onClick={(e) => { e.stopPropagation(); removeFromCollection(img.id); }} className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10" title="Remove">
+                                                                <X className="w-2.5 h-2.5" />
+                                                            </button>
+                                                            {/* Plus and Download buttons centered */}
                                                             <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded flex items-center justify-center gap-1">
-                                                                <button onClick={(e) => { e.stopPropagation(); addImageToCombineSlot(0, { id: generateUniqueId(), base64: img.preview.split(',')[1], preview: img.preview, fileName: img.fileName }); }} className="bg-amber-500 hover:bg-amber-600 text-white p-1 rounded" title="Add to section">
+                                                                <button onClick={(e) => { e.stopPropagation(); addImageToCombineSlot(combineTargetSection, { id: generateUniqueId(), base64: img.preview.split(',')[1], preview: img.preview, fileName: img.fileName }); }} className="bg-amber-500 hover:bg-amber-600 text-white p-1 rounded" title={`Add to Section ${combineTargetSection + 1}`}>
                                                                     <Plus className="w-2.5 h-2.5" />
                                                                 </button>
                                                                 <button onClick={(e) => { e.stopPropagation(); downloadFromCollection(img); }} className="bg-green-500 hover:bg-green-600 text-white p-1 rounded" title="Download">
                                                                     <Download className="w-2.5 h-2.5" />
-                                                                </button>
-                                                                <button onClick={(e) => { e.stopPropagation(); removeFromCollection(img.id); }} className="bg-red-500 hover:bg-red-600 text-white p-1 rounded" title="Remove">
-                                                                    <X className="w-2.5 h-2.5" />
                                                                 </button>
                                                             </div>
                                                         </div>
@@ -3562,18 +3728,34 @@
                                                                 className="w-full rounded-lg border border-slate-600 shadow-lg cursor-pointer hover:border-purple-500 transition-colors"
                                                                 onClick={() => openImageModal(result, `Combined Result ${idx + 1}`)}
                                                             />
-                                                            <button
-                                                                onClick={() => {
-                                                                    const link = document.createElement('a');
-                                                                    link.href = result;
-                                                                    link.download = `combined-${index + 1}-${idx + 1}-${Date.now()}.jpg`;
-                                                                    link.click();
-                                                                }}
-                                                                className="w-full bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
-                                                            >
-                                                                <Download className="w-4 h-4" />
-                                                                Download Variation {idx + 1}
-                                                            </button>
+                                                            <div className="flex gap-2">
+                                                                <button
+                                                                    onClick={() => {
+                                                                        const link = document.createElement('a');
+                                                                        link.href = result;
+                                                                        link.download = `combined-${index + 1}-${idx + 1}-${Date.now()}.jpg`;
+                                                                        link.click();
+                                                                    }}
+                                                                    className="flex-1 bg-green-500 hover:bg-green-600 text-white py-2 px-3 rounded-lg transition-colors flex items-center justify-center gap-2"
+                                                                >
+                                                                    <Download className="w-4 h-4" />
+                                                                    Download
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => addResultToCollection(result, `combined-${index + 1}-${idx + 1}.jpg`)}
+                                                                    className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-3 rounded-lg transition-colors flex items-center justify-center"
+                                                                    title="Add to Collection"
+                                                                >
+                                                                    <Folder className="w-4 h-4" />
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => iterateInCombineMode(result)}
+                                                                    className="bg-amber-500 hover:bg-amber-600 text-white py-2 px-3 rounded-lg transition-colors flex items-center justify-center"
+                                                                    title="Iterate - Create new section with this result"
+                                                                >
+                                                                    <RefreshCw className="w-4 h-4" />
+                                                                </button>
+                                                            </div>
                                                         </div>
                                                     ))}
                                                 </div>
@@ -3768,13 +3950,29 @@
                                                                         className="w-full rounded-lg border border-slate-600 shadow-lg cursor-pointer hover:border-blue-500 transition-colors"
                                                                         onClick={() => openImageModal(slot.results[0], `Generated Image ${index + 1}`)}
                                                                     />
-                                                                    <button
-                                                                        onClick={() => downloadGenSlotImage(index, 0)}
-                                                                        className="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm"
-                                                                    >
-                                                                        <Download className="w-4 h-4" />
-                                                                        Download
-                                                                    </button>
+                                                                    <div className="flex gap-2">
+                                                                        <button
+                                                                            onClick={() => downloadGenSlotImage(index, 0)}
+                                                                            className="flex-1 bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-3 rounded-lg transition-colors flex items-center justify-center gap-1.5 text-sm"
+                                                                        >
+                                                                            <Download className="w-4 h-4" />
+                                                                            Download
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => addResultToCollection(slot.results[0], `generated-${index + 1}.jpg`)}
+                                                                            className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-3 rounded-lg transition-colors flex items-center justify-center"
+                                                                            title="Add to Collection"
+                                                                        >
+                                                                            <Folder className="w-4 h-4" />
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => iterateInEditMode(slot.results[0])}
+                                                                            className="bg-amber-500 hover:bg-amber-600 text-white font-semibold py-2 px-3 rounded-lg transition-colors flex items-center justify-center"
+                                                                            title="Iterate - Edit this result"
+                                                                        >
+                                                                            <RefreshCw className="w-4 h-4" />
+                                                                        </button>
+                                                                    </div>
                                                                 </>
                                                             ) : (
                                                                 <>
@@ -3798,12 +3996,29 @@
                                                                                     onClick={() => openImageModal(result, `Generated Image ${index + 1} - Variation ${varIdx + 1}`)}
                                                                                 />
                                                                                 <div className="absolute top-1 left-1 bg-black/60 text-white text-xs px-2 py-0.5 rounded-full">#{varIdx + 1}</div>
-                                                                                <button
-                                                                                    onClick={() => downloadGenSlotImage(index, varIdx)}
-                                                                                    className="absolute bottom-1 right-1 bg-green-500 hover:bg-green-600 text-white p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                                                                                >
-                                                                                    <Download className="w-3 h-3" />
-                                                                                </button>
+                                                                                <div className="absolute bottom-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                                    <button
+                                                                                        onClick={() => downloadGenSlotImage(index, varIdx)}
+                                                                                        className="bg-green-500 hover:bg-green-600 text-white p-1.5 rounded-lg"
+                                                                                        title="Download"
+                                                                                    >
+                                                                                        <Download className="w-3 h-3" />
+                                                                                    </button>
+                                                                                    <button
+                                                                                        onClick={() => addResultToCollection(result, `generated-${index + 1}-v${varIdx + 1}.jpg`)}
+                                                                                        className="bg-blue-500 hover:bg-blue-600 text-white p-1.5 rounded-lg"
+                                                                                        title="Add to Collection"
+                                                                                    >
+                                                                                        <Folder className="w-3 h-3" />
+                                                                                    </button>
+                                                                                    <button
+                                                                                        onClick={() => iterateInEditMode(result)}
+                                                                                        className="bg-amber-500 hover:bg-amber-600 text-white p-1.5 rounded-lg"
+                                                                                        title="Iterate"
+                                                                                    >
+                                                                                        <RefreshCw className="w-3 h-3" />
+                                                                                    </button>
+                                                                                </div>
                                                                             </div>
                                                                         ))}
                                                                     </div>
