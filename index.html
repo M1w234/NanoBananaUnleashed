@@ -598,7 +598,22 @@
             const [genSlots, setGenSlots] = useState(1); // Number of variations to generate
             const [genResults, setGenResults] = useState([]); // Array to store multiple results
 
-            // MULTI-IMAGE EDIT MODE: Multiple images, single prompt
+            // MULTI-IMAGE EDIT MODE: Multiple images, single prompt - now array-based
+            const [multiSlotsArray, setMultiSlotsArray] = useState([{
+                id: generateUniqueId(),
+                images: [],
+                prompt: '',
+                aspectRatio: 'auto',
+                resolution: '4K',
+                variations: 1,
+                loading: false,
+                results: [],
+                error: null
+            }]);
+            const [visibleMultiSlots, setVisibleMultiSlots] = useState(1);
+            const multiFileInputRefs = useRef({});
+            
+            // Legacy state kept for compatibility
             const [multiImageCount, setMultiImageCount] = useState(5);
             const [multiImages, setMultiImages] = useState([]);
             const [multiPrompt, setMultiPrompt] = useState('');
@@ -611,7 +626,22 @@
             const [multiSlots, setMultiSlots] = useState(1); // Number of output variations per image
             const [multiDragActive, setMultiDragActive] = useState(false);
 
-            // MULTI-IMAGE GENERATOR MODE: Combine multiple images into ONE (or multiple variations)
+            // MULTI-IMAGE GENERATOR MODE: Combine multiple images - now array-based
+            const [combineSlotsArray, setCombineSlotsArray] = useState([{
+                id: generateUniqueId(),
+                images: [],
+                prompt: '',
+                aspectRatio: '16:9',
+                resolution: '4K',
+                variations: 1,
+                loading: false,
+                results: [],
+                error: null
+            }]);
+            const [visibleCombineSlots, setVisibleCombineSlots] = useState(1);
+            const combineFileInputRefs = useRef({});
+            
+            // Legacy state kept for compatibility
             const [combineImages, setCombineImages] = useState([]);
             const [combinePrompt, setCombinePrompt] = useState('');
             const [combineAspectRatio, setCombineAspectRatio] = useState('16:9');
@@ -1556,6 +1586,150 @@
                 }
             };
 
+            // === MULTI-SLOT FUNCTIONS FOR MULTI-IMAGE EDIT ===
+            const updateMultiSlot = (index, updates) => {
+                setMultiSlotsArray(prev => prev.map((slot, i) => 
+                    i === index ? { ...slot, ...updates } : slot
+                ));
+            };
+
+            const addImageToMultiSlot = (index, imageData) => {
+                setMultiSlotsArray(prev => prev.map((slot, i) => 
+                    i === index ? { ...slot, images: [...slot.images, imageData] } : slot
+                ));
+            };
+
+            const removeImageFromMultiSlot = (slotIndex, imageIndex) => {
+                setMultiSlotsArray(prev => prev.map((slot, i) => 
+                    i === slotIndex ? { ...slot, images: slot.images.filter((_, idx) => idx !== imageIndex) } : slot
+                ));
+            };
+
+            const clearMultiSlot = (index) => {
+                setMultiSlotsArray(prev => prev.map((slot, i) => 
+                    i === index ? { ...slot, images: [], results: [], error: null } : slot
+                ));
+            };
+
+            const handleMultiSlotDrop = (slotIndex, e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const files = Array.from(e.dataTransfer.files).filter(file => 
+                    file.type.startsWith('image/')
+                );
+                if (files.length === 0) return;
+
+                const currentSlot = multiSlotsArray[slotIndex];
+                const remainingSlots = 20 - currentSlot.images.length;
+                const filesToProcess = files.slice(0, remainingSlots);
+
+                filesToProcess.forEach(file => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        addToCollection(reader.result, file.name);
+                        addImageToMultiSlot(slotIndex, {
+                            id: generateUniqueId(),
+                            base64: reader.result.split(',')[1],
+                            preview: reader.result,
+                            fileName: file.name
+                        });
+                    };
+                    reader.readAsDataURL(file);
+                });
+            };
+
+            const handleMultiSlotFileSelect = (slotIndex, e) => {
+                const files = Array.from(e.target.files || []).filter(file => 
+                    file.type.startsWith('image/')
+                );
+                if (files.length === 0) return;
+
+                const currentSlot = multiSlotsArray[slotIndex];
+                const remainingSlots = 20 - currentSlot.images.length;
+                const filesToProcess = files.slice(0, remainingSlots);
+
+                filesToProcess.forEach(file => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        addToCollection(reader.result, file.name);
+                        addImageToMultiSlot(slotIndex, {
+                            id: generateUniqueId(),
+                            base64: reader.result.split(',')[1],
+                            preview: reader.result,
+                            fileName: file.name
+                        });
+                    };
+                    reader.readAsDataURL(file);
+                });
+                e.target.value = '';
+            };
+
+            const processMultiSlot = async (slotIndex) => {
+                const slot = multiSlotsArray[slotIndex];
+                if (slot.images.length === 0 || !slot.prompt.trim()) return;
+                if (!apiKey) { setSettingsOpen(true); return; }
+
+                updateMultiSlot(slotIndex, { loading: true, error: null, results: [] });
+
+                try {
+                    const results = [];
+                    for (const img of slot.images) {
+                        const response = await fetch(
+                            `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`,
+                            {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    contents: [{
+                                        parts: [
+                                            { inlineData: { mimeType: 'image/jpeg', data: img.base64 } },
+                                            { text: slot.prompt }
+                                        ]
+                                    }],
+                                    generationConfig: { responseModalities: ['image', 'text'] }
+                                })
+                            }
+                        );
+
+                        const data = await response.json();
+                        if (data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data) {
+                            results.push(`data:image/jpeg;base64,${data.candidates[0].content.parts[0].inlineData.data}`);
+                        }
+                    }
+                    
+                    updateMultiSlot(slotIndex, { loading: false, results });
+                    
+                    // Add to history
+                    const entry = {
+                        id: generateUniqueId(),
+                        timestamp: new Date().toISOString(),
+                        mode: 'multi',
+                        prompt: slot.prompt,
+                        inputs: slot.images.map(img => img.preview),
+                        results
+                    };
+                    setHistory(prev => [entry, ...prev].slice(0, 100));
+                    saveHistoryToDB([entry, ...history].slice(0, 100));
+                } catch (error) {
+                    updateMultiSlot(slotIndex, { loading: false, error: error.message });
+                }
+            };
+
+            const processAllMultiSlots = async () => {
+                const activeSlots = multiSlotsArray
+                    .slice(0, visibleMultiSlots)
+                    .map((slot, index) => ({ slot, index }))
+                    .filter(({ slot }) => slot.images.length > 0 && slot.prompt.trim());
+                
+                for (const { index } of activeSlots) {
+                    await processMultiSlot(index);
+                }
+            };
+
+            const getActiveMultiCount = () => multiSlotsArray.slice(0, visibleMultiSlots).filter(s => s.images.length > 0 && s.prompt.trim()).length;
+            const getCompletedMultiCount = () => multiSlotsArray.slice(0, visibleMultiSlots).filter(s => s.results?.length > 0).length;
+
             // === MULTI-IMAGE GENERATOR (COMBINE) MODE FUNCTIONS ===
             const handleCombineDrag = (e) => {
                 e.preventDefault();
@@ -1767,6 +1941,152 @@
                     combineFileInputRef.current.value = '';
                 }
             };
+
+            // === MULTI-SLOT FUNCTIONS FOR COMBINE MODE ===
+            const updateCombineSlot = (index, updates) => {
+                setCombineSlotsArray(prev => prev.map((slot, i) => 
+                    i === index ? { ...slot, ...updates } : slot
+                ));
+            };
+
+            const addImageToCombineSlot = (index, imageData) => {
+                setCombineSlotsArray(prev => prev.map((slot, i) => 
+                    i === index ? { ...slot, images: [...slot.images, imageData] } : slot
+                ));
+            };
+
+            const removeImageFromCombineSlot = (slotIndex, imageIndex) => {
+                setCombineSlotsArray(prev => prev.map((slot, i) => 
+                    i === slotIndex ? { ...slot, images: slot.images.filter((_, idx) => idx !== imageIndex) } : slot
+                ));
+            };
+
+            const clearCombineSlot = (index) => {
+                setCombineSlotsArray(prev => prev.map((slot, i) => 
+                    i === index ? { ...slot, images: [], results: [], error: null } : slot
+                ));
+            };
+
+            const handleCombineSlotDrop = (slotIndex, e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const files = Array.from(e.dataTransfer.files).filter(file => 
+                    file.type.startsWith('image/')
+                );
+                if (files.length === 0) return;
+
+                const currentSlot = combineSlotsArray[slotIndex];
+                const remainingSlots = 20 - currentSlot.images.length;
+                const filesToProcess = files.slice(0, remainingSlots);
+
+                filesToProcess.forEach(file => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        addToCollection(reader.result, file.name);
+                        addImageToCombineSlot(slotIndex, {
+                            id: generateUniqueId(),
+                            base64: reader.result.split(',')[1],
+                            preview: reader.result,
+                            fileName: file.name
+                        });
+                    };
+                    reader.readAsDataURL(file);
+                });
+            };
+
+            const handleCombineSlotFileSelect = (slotIndex, e) => {
+                const files = Array.from(e.target.files || []).filter(file => 
+                    file.type.startsWith('image/')
+                );
+                if (files.length === 0) return;
+
+                const currentSlot = combineSlotsArray[slotIndex];
+                const remainingSlots = 20 - currentSlot.images.length;
+                const filesToProcess = files.slice(0, remainingSlots);
+
+                filesToProcess.forEach(file => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        addToCollection(reader.result, file.name);
+                        addImageToCombineSlot(slotIndex, {
+                            id: generateUniqueId(),
+                            base64: reader.result.split(',')[1],
+                            preview: reader.result,
+                            fileName: file.name
+                        });
+                    };
+                    reader.readAsDataURL(file);
+                });
+                e.target.value = '';
+            };
+
+            const processCombineSlot = async (slotIndex) => {
+                const slot = combineSlotsArray[slotIndex];
+                if (slot.images.length < 2 || !slot.prompt.trim()) return;
+                if (!apiKey) { setSettingsOpen(true); return; }
+
+                updateCombineSlot(slotIndex, { loading: true, error: null, results: [] });
+
+                try {
+                    const imageParts = slot.images.map(img => ({
+                        inlineData: { mimeType: 'image/jpeg', data: img.base64 }
+                    }));
+
+                    const results = [];
+                    for (let i = 0; i < slot.variations; i++) {
+                        const response = await fetch(
+                            `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`,
+                            {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    contents: [{
+                                        parts: [...imageParts, { text: slot.prompt }]
+                                    }],
+                                    generationConfig: { responseModalities: ['image', 'text'] }
+                                })
+                            }
+                        );
+
+                        const data = await response.json();
+                        if (data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data) {
+                            results.push(`data:image/jpeg;base64,${data.candidates[0].content.parts[0].inlineData.data}`);
+                        }
+                    }
+                    
+                    updateCombineSlot(slotIndex, { loading: false, results });
+                    
+                    // Add to history
+                    const entry = {
+                        id: generateUniqueId(),
+                        timestamp: new Date().toISOString(),
+                        mode: 'combine',
+                        prompt: slot.prompt,
+                        sourceImage: slot.images[0]?.preview || null,
+                        sourceCount: slot.images.length,
+                        results
+                    };
+                    setHistory(prev => [entry, ...prev].slice(0, 100));
+                    saveHistoryToDB([entry, ...history].slice(0, 100));
+                } catch (error) {
+                    updateCombineSlot(slotIndex, { loading: false, error: error.message });
+                }
+            };
+
+            const processAllCombineSlots = async () => {
+                const activeSlots = combineSlotsArray
+                    .slice(0, visibleCombineSlots)
+                    .map((slot, index) => ({ slot, index }))
+                    .filter(({ slot }) => slot.images.length >= 2 && slot.prompt.trim());
+                
+                for (const { index } of activeSlots) {
+                    await processCombineSlot(index);
+                }
+            };
+
+            const getActiveCombineCount = () => combineSlotsArray.slice(0, visibleCombineSlots).filter(s => s.images.length >= 2 && s.prompt.trim()).length;
+            const getCompletedCombineCount = () => combineSlotsArray.slice(0, visibleCombineSlots).filter(s => s.results?.length > 0).length;
 
             const handleModeChange = (newMode) => {
                 setMode(newMode);
@@ -2281,7 +2601,7 @@
                                                         value={img.prompt}
                                                         onChange={(e) => updateImage(index, { prompt: e.target.value })}
                                                         placeholder="Describe your editing instructions..."
-                                                        className="w-full h-32 bg-slate-900 text-white rounded-lg p-3 border border-slate-600 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 resize-none text-sm"
+                                                        className="w-full h-48 bg-slate-900 text-white rounded-lg p-3 border border-slate-600 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 resize-none text-sm"
                                                     />
 
                                                     {/* Settings */}
@@ -2468,7 +2788,7 @@
                                     Upload multiple images and apply the same edits to all of them
                                 </p>
                                 
-                                {/* Image Collection for Multi-Edit */}
+                                {/* Image Collection Dropdown at Top */}
                                 <div className="mb-4">
                                     <button
                                         onClick={() => setCollectionOpen(!collectionOpen)}
@@ -2484,316 +2804,44 @@
                                         <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform ${collectionOpen ? 'rotate-180' : ''}`} />
                                     </button>
                                     
-                                    {collectionOpen && uploadedCollection.length > 0 && (
+                                    {collectionOpen && (
                                         <div className="mt-2 bg-slate-800/50 border border-slate-700 rounded-lg p-4">
-                                            <p className="text-slate-400 text-sm mb-3">Click + to add images from your collection</p>
-                                            <div className="grid grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2">
-                                                {uploadedCollection.map((img) => (
-                                                    <div 
-                                                        key={img.id} 
-                                                        className="relative group cursor-pointer"
-                                                        onClick={() => openImageModal(img.preview, img.fileName || 'Collection Image')}
-                                                    >
-                                                        <img
-                                                            src={img.preview}
-                                                            alt={img.fileName}
-                                                            className="w-full aspect-square object-cover rounded border border-slate-600 hover:border-blue-500 transition-colors"
-                                                        />
-                                                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded flex items-center justify-center">
-                                                            <button
-                                                                onClick={(e) => { 
-                                                                    e.stopPropagation(); 
-                                                                    useFromCollectionForMulti(img);
-                                                                }}
-                                                                className="bg-blue-500 hover:bg-blue-600 text-white p-1.5 rounded"
-                                                                title="Add to multi-edit"
-                                                            >
-                                                                <Plus className="w-3 h-3" />
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div className="bg-slate-800 rounded-xl p-8 border border-slate-700 shadow-xl">
-                                    {multiError && (
-                                        <div className="bg-red-500/10 border border-red-500 rounded-lg p-4 mb-6">
-                                            <p className="text-red-400">{multiError}</p>
-                                        </div>
-                                    )}
-
-                                    {/* Image Upload */}
-                                    <div className="mb-6">
-                                        {/* When no images uploaded - show drag and drop zone */}
-                                        {multiImages.length === 0 && (
-                                            <div
-                                                className={`border-2 border-dashed rounded-lg p-12 text-center cursor-pointer transition-all ${
-                                                    multiDragActive
-                                                        ? 'border-blue-500 bg-blue-500/10'
-                                                        : 'border-slate-600 hover:border-blue-500 bg-slate-900/50'
-                                                }`}
-                                                onClick={() => multiFileInputRef.current?.click()}
-                                                onDragEnter={handleMultiDrag}
-                                                onDragLeave={handleMultiDrag}
-                                                onDragOver={handleMultiDrag}
-                                                onDrop={handleMultiDrop}
-                                            >
-                                                <Upload className="w-16 h-16 text-blue-400 mx-auto mb-4" />
-                                                <p className="text-white text-lg font-semibold mb-2">
-                                                    Drop Images Here
-                                                </p>
-                                                <p className="text-slate-400 mb-1">
-                                                    or click to browse
-                                                </p>
-                                                <p className="text-slate-500 text-sm">
-                                                    Upload multiple images to edit with the same prompt
-                                                </p>
-                                                <input
-                                                    ref={multiFileInputRef}
-                                                    type="file"
-                                                    multiple
-                                                    accept="image/*"
-                                                    className="hidden"
-                                                    onChange={handleMultiFileSelect}
-                                                />
-                                            </div>
-                                        )}
-
-                                        {/* When images are uploaded - show grid with add more button */}
-                                        {multiImages.length > 0 && (
-                                            <div className="space-y-4">
-                                                <div className="flex items-center justify-between">
-                                                    <div>
-                                                        <p className="text-slate-300 text-sm font-medium">
-                                                            {multiImages.length} image{multiImages.length !== 1 ? 's' : ''} uploaded
-                                                        </p>
-                                                        <p className="text-slate-500 text-xs">
-                                                            {multiImages.length < 20 ? `Drop more images or click "Add More" (max 20 total)` : 'Maximum images reached'}
-                                                        </p>
-                                                    </div>
+                                            <div className="flex items-center justify-between mb-3">
+                                                <p className="text-slate-400 text-sm">Click an image to preview, use + to add to a section</p>
+                                                {uploadedCollection.length > 0 && (
                                                     <div className="flex gap-2">
-                                                        {multiImages.length < 20 && (
-                                                            <button
-                                                                onClick={() => multiFileInputRef.current?.click()}
-                                                                className="bg-blue-500 hover:bg-blue-600 text-white text-sm px-3 py-1.5 rounded flex items-center gap-1"
-                                                            >
-                                                                <Upload className="w-3 h-3" />
-                                                                Add More
-                                                            </button>
-                                                        )}
-                                                        <button
-                                                            onClick={clearMultiImages}
-                                                            className="text-red-400 hover:text-red-300 text-sm px-3 py-1.5 rounded border border-red-400/30 hover:border-red-400 flex items-center gap-1"
-                                                        >
-                                                            <X className="w-3 h-3" />
-                                                            Clear All
+                                                        <button onClick={downloadAllFromCollection} className="bg-green-500 hover:bg-green-600 text-white font-semibold py-1.5 px-3 rounded-lg transition-colors flex items-center gap-1.5 text-xs">
+                                                            <Download className="w-3 h-3" /> Download All
+                                                        </button>
+                                                        <button onClick={clearCollection} className="bg-red-500 hover:bg-red-600 text-white font-semibold py-1.5 px-3 rounded-lg transition-colors flex items-center gap-1.5 text-xs">
+                                                            <Trash className="w-3 h-3" /> Clear
                                                         </button>
                                                     </div>
-                                                </div>
-                                                <div 
-                                                    className={`grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 p-4 rounded-lg border-2 transition-all ${
-                                                        multiDragActive && multiImages.length < 20
-                                                            ? 'border-blue-500 bg-blue-500/10'
-                                                            : 'border-slate-700 bg-slate-900/30'
-                                                    }`}
-                                                    onDragEnter={multiImages.length < 20 ? handleMultiDrag : undefined}
-                                                    onDragLeave={multiImages.length < 20 ? handleMultiDrag : undefined}
-                                                    onDragOver={multiImages.length < 20 ? handleMultiDrag : undefined}
-                                                    onDrop={multiImages.length < 20 ? handleMultiDrop : undefined}
-                                                >
-                                                    {multiImages.map((img, idx) => (
-                                                        <div key={idx} className="relative group">
-                                                            <img
-                                                                src={img.preview}
-                                                                alt={`Upload ${idx + 1}`}
-                                                                className="w-full aspect-square object-cover rounded-lg border-2 border-blue-500/50"
-                                                            />
-                                                            <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                <button
-                                                                    onClick={() => {
-                                                                        const link = document.createElement('a');
-                                                                        link.href = img.preview;
-                                                                        link.download = `multi-source-${idx + 1}.jpg`;
-                                                                        document.body.appendChild(link);
-                                                                        link.click();
-                                                                        document.body.removeChild(link);
-                                                                    }}
-                                                                    className="bg-green-500 hover:bg-green-600 text-white rounded-full p-1"
-                                                                    title="Download"
-                                                                >
-                                                                    <Download className="w-3 h-3" />
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => addToCollection(img.preview, `multi-${idx + 1}.jpg`)}
-                                                                    className="bg-blue-500 hover:bg-blue-600 text-white rounded-full p-1"
-                                                                    title="Save to Collection"
-                                                                >
-                                                                    <Folder className="w-3 h-3" />
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => removeMultiImage(idx)}
-                                                                    className="bg-red-500 hover:bg-red-600 text-white rounded-full p-1"
-                                                                >
-                                                                    <X className="w-3 h-3" />
-                                                                </button>
-                                                            </div>
-                                                            <div className="absolute bottom-1 left-1 bg-blue-600 text-white text-xs px-2 py-1 rounded font-semibold">
-                                                                #{idx + 1}
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                    {/* Show placeholder slots for remaining images */}
-                                                    {multiImages.length < 20 && Array.from({ length: Math.min(10 - multiImages.length, 4) }).map((_, idx) => (
-                                                        <div 
-                                                            key={`placeholder-${idx}`} 
-                                                            className="aspect-square rounded-lg border-2 border-dashed border-slate-600 bg-slate-800/50 flex items-center justify-center cursor-pointer hover:border-blue-500 transition-colors"
-                                                            onClick={() => multiFileInputRef.current?.click()}
-                                                        >
-                                                            <div className="text-center">
-                                                                <Upload className="w-6 h-6 text-slate-500 mx-auto mb-1" />
-                                                                <p className="text-slate-500 text-xs">Drop or Click</p>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                                <input
-                                                    ref={multiFileInputRef}
-                                                    type="file"
-                                                    multiple
-                                                    accept="image/*"
-                                                    className="hidden"
-                                                    onChange={handleMultiFileSelect}
-                                                />
+                                                )}
                                             </div>
-                                        )}
-                                    </div>
-
-                                    {/* Shared Prompt */}
-                                    <div className="mb-6">
-                                        <label className="block text-sm font-medium text-slate-300 mb-2">
-                                            Edit Instructions (Applied to All Images)
-                                        </label>
-                                        <textarea
-                                            value={multiPrompt}
-                                            onChange={(e) => setMultiPrompt(e.target.value)}
-                                            placeholder="Apply warm golden hour lighting, enhance shadows, increase contrast..."
-                                            className="w-full h-32 bg-slate-900 text-white rounded-lg p-4 border border-slate-600 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 resize-none"
-                                        />
-                                    </div>
-
-                                    {/* Shared Settings */}
-                                    <div className="grid grid-cols-3 gap-4 mb-6">
-                                        <div>
-                                            <label className="block text-sm font-medium text-slate-300 mb-2">
-                                                Aspect Ratio
-                                            </label>
-                                            <select
-                                                value={multiAspectRatio}
-                                                onChange={(e) => setMultiAspectRatio(e.target.value)}
-                                                className="w-full bg-slate-900 text-white rounded-lg p-3 border border-slate-600 focus:border-amber-500 focus:outline-none cursor-pointer"
+                                            <div
+                                                className="border-2 border-dashed border-slate-600 hover:border-blue-500 rounded-lg p-4 text-center transition-all mb-4"
+                                                onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                                                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                                                onDrop={(e) => {
+                                                    e.preventDefault(); e.stopPropagation();
+                                                    Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/')).forEach(file => {
+                                                        const reader = new FileReader();
+                                                        reader.onloadend = () => addToCollection(reader.result, file.name);
+                                                        reader.readAsDataURL(file);
+                                                    });
+                                                }}
                                             >
-                                                <option value="auto">Auto (Original)</option>
-                                                <option value="1:1">1:1 (Square)</option>
-                                                <option value="16:9">16:9 (Widescreen)</option>
-                                                <option value="9:16">9:16 (Vertical)</option>
-                                                <option value="4:3">4:3 (Landscape)</option>
-                                                <option value="3:4">3:4 (Portrait)</option>
-                                                <option value="21:9">21:9 (Ultrawide)</option>
-                                                <option value="2:3">2:3</option>
-                                                <option value="3:2">3:2</option>
-                                                <option value="4:5">4:5</option>
-                                                <option value="5:4">5:4</option>
-                                            </select>
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-sm font-medium text-slate-300 mb-2">
-                                                Resolution
-                                            </label>
-                                            <select
-                                                value={multiResolution}
-                                                onChange={(e) => setMultiResolution(e.target.value)}
-                                                className="w-full bg-slate-900 text-white rounded-lg p-3 border border-slate-600 focus:border-amber-500 focus:outline-none cursor-pointer"
-                                            >
-                                                <option value="1K">1K</option>
-                                                <option value="2K">2K</option>
-                                                <option value="4K">4K (Recommended)</option>
-                                            </select>
-                                        </div>
-                                        
-                                        <div>
-                                            <label className="block text-sm font-medium text-slate-300 mb-2">
-                                                Variations per Image
-                                            </label>
-                                            <select
-                                                value={multiSlots}
-                                                onChange={(e) => setMultiSlots(Number(e.target.value))}
-                                                className="w-full bg-slate-900 text-white rounded-lg p-3 border border-slate-600 focus:border-amber-500 focus:outline-none cursor-pointer"
-                                            >
-                                                {[1,2,3,4,5,6,7,8,9,10].map(n => (
-                                                    <option key={n} value={n}>{n} Variation{n !== 1 ? 's' : ''}</option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    </div>
-                                    
-                                    {/* Image Collection */}
-                                    <div className="mb-6 border border-slate-700 rounded-lg p-4 bg-slate-900/30">
-                                        <div className="flex items-center justify-between mb-3">
-                                            <div className="flex items-center gap-2">
-                                                <Folder className="w-4 h-4 text-blue-500" />
-                                                <span className="text-white font-medium text-sm">Image Collection</span>
-                                                <span className="text-slate-400 text-xs">({uploadedCollection.length} saved)</span>
+                                                <Folder className="w-6 h-6 text-blue-400 mx-auto mb-2" />
+                                                <p className="text-slate-300 text-sm">Drop images here to save to collection</p>
                                             </div>
                                             {uploadedCollection.length > 0 && (
-                                                <div className="flex gap-2">
-                                                    <button
-                                                        onClick={downloadAllFromCollection}
-                                                        className="bg-green-500 hover:bg-green-600 text-white font-semibold py-1 px-2 rounded transition-colors flex items-center gap-1 text-xs"
-                                                    >
-                                                        <Download className="w-3 h-3" />
-                                                        All
-                                                    </button>
-                                                    <button
-                                                        onClick={clearCollection}
-                                                        className="bg-red-500 hover:bg-red-600 text-white font-semibold py-1 px-2 rounded transition-colors flex items-center gap-1 text-xs"
-                                                    >
-                                                        <Trash className="w-3 h-3" />
-                                                        Clear
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </div>
-                                        <div
-                                            className="border-2 border-dashed border-slate-600 hover:border-blue-500 rounded-lg p-3 text-center cursor-pointer transition-all mb-3"
-                                            onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                                            onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                                            onDrop={(e) => {
-                                                e.preventDefault();
-                                                e.stopPropagation();
-                                                const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
-                                                files.forEach(file => {
-                                                    const reader = new FileReader();
-                                                    reader.onloadend = () => addToCollection(reader.result, file.name);
-                                                    reader.readAsDataURL(file);
-                                                });
-                                            }}
-                                        >
-                                            <Folder className="w-5 h-5 text-blue-400 mx-auto mb-1" />
-                                            <p className="text-slate-300 text-xs">Drop images here to save to collection</p>
-                                        </div>
-                                        {uploadedCollection.length > 0 && (
-                                            <div>
-                                                <p className="text-slate-500 text-xs mb-2">Click an image to add it to this edit session</p>
-                                                <div className="grid grid-cols-8 gap-2">
+                                                <div className="grid grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2">
                                                     {uploadedCollection.map((img) => (
-                                                        <div key={img.id} className="relative group cursor-pointer" onClick={() => useFromCollectionForMulti(img)}>
+                                                        <div key={img.id} className="relative group cursor-pointer" onClick={() => openImageModal(img.preview, img.fileName || 'Collection Image')}>
                                                             <img src={img.preview} alt={img.fileName} className="w-full aspect-square object-cover rounded border border-slate-600 hover:border-blue-500 transition-colors" />
                                                             <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded flex items-center justify-center gap-1">
-                                                                <button onClick={(e) => { e.stopPropagation(); useFromCollectionForMulti(img); }} className="bg-blue-500 hover:bg-blue-600 text-white p-1 rounded" title="Use">
+                                                                <button onClick={(e) => { e.stopPropagation(); addImageToMultiSlot(0, { id: generateUniqueId(), base64: img.preview.split(',')[1], preview: img.preview, fileName: img.fileName }); }} className="bg-amber-500 hover:bg-amber-600 text-white p-1 rounded" title="Add to section">
                                                                     <Plus className="w-2.5 h-2.5" />
                                                                 </button>
                                                                 <button onClick={(e) => { e.stopPropagation(); downloadFromCollection(img); }} className="bg-green-500 hover:bg-green-600 text-white p-1 rounded" title="Download">
@@ -2806,76 +2854,347 @@
                                                         </div>
                                                     ))}
                                                 </div>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Process Button */}
-                                    {!multiLoading && (
-                                        <button
-                                            onClick={processMultiImages}
-                                            disabled={multiImages.length === 0 || !multiPrompt.trim()}
-                                            className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 disabled:from-slate-700 disabled:to-slate-700 disabled:cursor-not-allowed text-white font-bold py-4 px-6 rounded-lg transition-all flex items-center justify-center gap-3 shadow-lg text-lg"
-                                        >
-                                            <Zap className="w-6 h-6" />
-                                            Process All {multiImages.length} Image{multiImages.length !== 1 ? 's' : ''}
-                                        </button>
-                                    )}
-
-                                    {/* Loading State */}
-                                    {multiLoading && (
-                                        <div className="text-center py-12">
-                                            <Loader2 className="w-16 h-16 text-amber-500 mx-auto mb-4 animate-spin" />
-                                            <p className="text-slate-300 text-lg font-semibold">Processing {multiImages.length} image{multiImages.length !== 1 ? 's' : ''} ({multiSlots} variation{multiSlots > 1 ? 's' : ''} each)...</p>
-                                            <p className="text-slate-500 text-sm mt-2">Generating {multiImages.length * multiSlots} total image{multiImages.length * multiSlots !== 1 ? 's' : ''} - may take {Math.ceil(multiImages.length * multiSlots * 20)}-{Math.ceil(multiImages.length * multiSlots * 30)} seconds</p>
-                                        </div>
-                                    )}
-
-                                    {/* Results */}
-                                    {multiResults.length > 0 && !multiLoading && (
-                                        <div className="mt-8 pt-8 border-t border-slate-700">
-                                            <div className="flex items-center justify-between mb-4">
-                                                <h3 className="text-xl font-semibold text-white">
-                                                    ✅ {multiResults.length} Image{multiResults.length !== 1 ? 's' : ''} Generated ({multiImages.length} input × {multiSlots} variation{multiSlots > 1 ? 's' : ''})
-                                                </h3>
-                                                <button
-                                                    onClick={downloadAllMulti}
-                                                    className="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors flex items-center gap-2"
-                                                >
-                                                    <Download className="w-4 h-4" />
-                                                    Download All
-                                                </button>
-                                            </div>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                                {multiResults.map((result, idx) => (
-                                                    <div key={idx} className="space-y-3">
-                                                        <div className="relative">
-                                                            <img
-                                                                src={result}
-                                                                alt={`Result ${idx + 1}`}
-                                                                className="w-full rounded-lg border border-slate-600 shadow-lg cursor-pointer hover:border-purple-500 transition-colors"
-                                                                onClick={() => openImageModal(result, `Multi-Edit Result ${idx + 1}`)}
-                                                            />
-                                                            <div className="absolute top-2 left-2 bg-black/60 text-white text-sm px-3 py-1 rounded-full">
-                                                                #{idx + 1}
-                                                            </div>
-                                                        </div>
-                                                        <button
-                                                            onClick={() => downloadMultiImage(idx)}
-                                                            className="w-full bg-slate-700 hover:bg-slate-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm"
-                                                        >
-                                                            <Download className="w-4 h-4" />
-                                                            Download #{idx + 1}
-                                                        </button>
-                                                    </div>
-                                                ))}
-                                            </div>
+                                            )}
                                         </div>
                                     )}
                                 </div>
+
+                                {/* Multi-Edit Sections */}
+                                {multiSlotsArray.slice(0, visibleMultiSlots).map((slot, index) => (
+                                    <div key={slot.id} className="bg-slate-800 rounded-xl p-8 border border-slate-700 shadow-xl mb-6">
+                                        {/* Section Header */}
+                                        <div className="flex items-center justify-between mb-4">
+                                            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                                                Section {index + 1}
+                                                {slot.results?.length > 0 && <CheckCircle className="w-5 h-5 text-green-400" />}
+                                            </h3>
+                                            {visibleMultiSlots > 1 && (
+                                                <button
+                                                    onClick={() => {
+                                                        setMultiSlotsArray(prev => prev.filter((_, i) => i !== index));
+                                                        setVisibleMultiSlots(prev => prev - 1);
+                                                    }}
+                                                    className="text-slate-500 hover:text-red-400 p-1 transition-colors"
+                                                    title="Remove section"
+                                                >
+                                                    <X className="w-5 h-5" />
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        {slot.error && (
+                                            <div className="bg-red-500/10 border border-red-500 rounded-lg p-4 mb-6">
+                                                <p className="text-red-400">{slot.error}</p>
+                                            </div>
+                                        )}
+
+                                        {/* Image Upload */}
+                                        <div className="mb-6">
+                                            {/* When no images uploaded - show drag and drop zone */}
+                                            {slot.images.length === 0 && (
+                                                <div
+                                                    className="border-2 border-dashed rounded-lg p-12 text-center cursor-pointer transition-all border-slate-600 hover:border-blue-500 bg-slate-900/50"
+                                                    onClick={() => multiFileInputRefs.current[index]?.click()}
+                                                    onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                                                    onDrop={(e) => handleMultiSlotDrop(index, e)}
+                                                >
+                                                    <Upload className="w-16 h-16 text-blue-400 mx-auto mb-4" />
+                                                    <p className="text-white text-lg font-semibold mb-2">
+                                                        Drop Images Here
+                                                    </p>
+                                                    <p className="text-slate-400 mb-1">
+                                                        or click to browse
+                                                    </p>
+                                                    <p className="text-slate-500 text-sm">
+                                                        Upload multiple images to edit with the same prompt
+                                                    </p>
+                                                    <input
+                                                        ref={el => multiFileInputRefs.current[index] = el}
+                                                        type="file"
+                                                        multiple
+                                                        accept="image/*"
+                                                        className="hidden"
+                                                        onChange={(e) => handleMultiSlotFileSelect(index, e)}
+                                                    />
+                                                </div>
+                                            )}
+
+                                            {/* When images are uploaded - show grid with add more button */}
+                                            {slot.images.length > 0 && (
+                                                <div className="space-y-4">
+                                                    <div className="flex items-center justify-between">
+                                                        <div>
+                                                            <p className="text-slate-300 text-sm font-medium">
+                                                                {slot.images.length} image{slot.images.length !== 1 ? 's' : ''} uploaded
+                                                            </p>
+                                                            <p className="text-slate-500 text-xs">
+                                                                {slot.images.length < 20 ? `Drop more images or click "Add More"` : 'Maximum images reached'}
+                                                            </p>
+                                                        </div>
+                                                        <div className="flex gap-2">
+                                                            {slot.images.length < 20 && (
+                                                                <button
+                                                                    onClick={() => multiFileInputRefs.current[index]?.click()}
+                                                                    className="bg-blue-500 hover:bg-blue-600 text-white text-sm px-3 py-1.5 rounded flex items-center gap-1"
+                                                                >
+                                                                    <Upload className="w-3 h-3" />
+                                                                    Add More
+                                                                </button>
+                                                            )}
+                                                            <button
+                                                                onClick={() => clearMultiSlot(index)}
+                                                                className="text-red-400 hover:text-red-300 text-sm px-3 py-1.5 rounded border border-red-400/30 hover:border-red-400 flex items-center gap-1"
+                                                            >
+                                                                <X className="w-3 h-3" />
+                                                                Clear All
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                    <div 
+                                                        className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 p-4 rounded-lg border-2 transition-all border-slate-700 bg-slate-900/30"
+                                                        onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                                                        onDrop={(e) => slot.images.length < 20 ? handleMultiSlotDrop(index, e) : null}
+                                                    >
+                                                        {slot.images.map((img, imgIdx) => (
+                                                            <div key={img.id} className="relative group">
+                                                                <img
+                                                                    src={img.preview}
+                                                                    alt={`Upload ${imgIdx + 1}`}
+                                                                    className="w-full aspect-square object-cover rounded-lg border-2 border-blue-500/50 cursor-pointer"
+                                                                    onClick={() => openImageModal(img.preview, img.fileName || `Image ${imgIdx + 1}`)}
+                                                                />
+                                                                <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            const link = document.createElement('a');
+                                                                            link.href = img.preview;
+                                                                            link.download = `multi-source-${imgIdx + 1}.jpg`;
+                                                                            link.click();
+                                                                        }}
+                                                                        className="bg-green-500 hover:bg-green-600 text-white rounded-full p-1"
+                                                                        title="Download"
+                                                                    >
+                                                                        <Download className="w-3 h-3" />
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => addToCollection(img.preview, img.fileName || `multi-${imgIdx + 1}.jpg`)}
+                                                                        className="bg-blue-500 hover:bg-blue-600 text-white rounded-full p-1"
+                                                                        title="Save to Collection"
+                                                                    >
+                                                                        <Folder className="w-3 h-3" />
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => removeImageFromMultiSlot(index, imgIdx)}
+                                                                        className="bg-red-500 hover:bg-red-600 text-white rounded-full p-1"
+                                                                    >
+                                                                        <X className="w-3 h-3" />
+                                                                    </button>
+                                                                </div>
+                                                                <div className="absolute bottom-1 left-1 bg-blue-600 text-white text-xs px-2 py-1 rounded font-semibold">
+                                                                    #{imgIdx + 1}
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                        {/* Show placeholder slots for remaining images */}
+                                                        {slot.images.length < 20 && Array.from({ length: Math.min(20 - slot.images.length, 4) }).map((_, idx) => (
+                                                            <div 
+                                                                key={`placeholder-${idx}`} 
+                                                                className="aspect-square rounded-lg border-2 border-dashed border-slate-600 bg-slate-800/50 flex items-center justify-center cursor-pointer hover:border-blue-500 transition-colors"
+                                                                onClick={() => multiFileInputRefs.current[index]?.click()}
+                                                            >
+                                                                <div className="text-center">
+                                                                    <Upload className="w-6 h-6 text-slate-500 mx-auto mb-1" />
+                                                                    <p className="text-slate-500 text-xs">Drop or Click</p>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                    <input
+                                                        ref={el => multiFileInputRefs.current[index] = el}
+                                                        type="file"
+                                                        multiple
+                                                        accept="image/*"
+                                                        className="hidden"
+                                                        onChange={(e) => handleMultiSlotFileSelect(index, e)}
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Shared Prompt */}
+                                        <div className="mb-6">
+                                            <label className="block text-sm font-medium text-slate-300 mb-2">
+                                                Edit Instructions (Applied to All Images)
+                                            </label>
+                                            <textarea
+                                                value={slot.prompt}
+                                                onChange={(e) => updateMultiSlot(index, { prompt: e.target.value })}
+                                                placeholder="Apply warm golden hour lighting, enhance shadows, increase contrast..."
+                                                className="w-full h-48 bg-slate-900 text-white rounded-lg p-4 border border-slate-600 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 resize-none"
+                                            />
+                                        </div>
+
+                                        {/* Shared Settings */}
+                                        <div className="grid grid-cols-3 gap-4 mb-6">
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-300 mb-2">
+                                                    Aspect Ratio
+                                                </label>
+                                                <select
+                                                    value={slot.aspectRatio}
+                                                    onChange={(e) => updateMultiSlot(index, { aspectRatio: e.target.value })}
+                                                    className="w-full bg-slate-900 text-white rounded-lg p-3 border border-slate-600 focus:border-amber-500 focus:outline-none cursor-pointer"
+                                                >
+                                                    <option value="auto">Auto (Original)</option>
+                                                    <option value="1:1">1:1 (Square)</option>
+                                                    <option value="16:9">16:9 (Widescreen)</option>
+                                                    <option value="9:16">9:16 (Vertical)</option>
+                                                    <option value="4:3">4:3 (Landscape)</option>
+                                                    <option value="3:4">3:4 (Portrait)</option>
+                                                    <option value="21:9">21:9 (Ultrawide)</option>
+                                                    <option value="2:3">2:3</option>
+                                                    <option value="3:2">3:2</option>
+                                                    <option value="4:5">4:5</option>
+                                                    <option value="5:4">5:4</option>
+                                                </select>
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-300 mb-2">
+                                                    Resolution
+                                                </label>
+                                                <select
+                                                    value={slot.resolution}
+                                                    onChange={(e) => updateMultiSlot(index, { resolution: e.target.value })}
+                                                    className="w-full bg-slate-900 text-white rounded-lg p-3 border border-slate-600 focus:border-amber-500 focus:outline-none cursor-pointer"
+                                                >
+                                                    <option value="1K">1K</option>
+                                                    <option value="2K">2K</option>
+                                                    <option value="4K">4K (Recommended)</option>
+                                                </select>
+                                            </div>
+                                            
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-300 mb-2">
+                                                    Variations per Image
+                                                </label>
+                                                <select
+                                                    value={slot.variations}
+                                                    onChange={(e) => updateMultiSlot(index, { variations: Number(e.target.value) })}
+                                                    className="w-full bg-slate-900 text-white rounded-lg p-3 border border-slate-600 focus:border-amber-500 focus:outline-none cursor-pointer"
+                                                >
+                                                    {[1,2,3,4,5,6,7,8,9,10].map(n => (
+                                                        <option key={n} value={n}>{n} Variation{n !== 1 ? 's' : ''}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        {/* Process Button */}
+                                        {!slot.loading && (
+                                            <button
+                                                onClick={() => processMultiSlot(index)}
+                                                disabled={slot.images.length === 0 || !slot.prompt.trim()}
+                                                className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 disabled:from-slate-700 disabled:to-slate-700 disabled:cursor-not-allowed text-white font-bold py-4 px-6 rounded-lg transition-all flex items-center justify-center gap-3 shadow-lg text-lg"
+                                            >
+                                                <Zap className="w-6 h-6" />
+                                                Process All {slot.images.length} Image{slot.images.length !== 1 ? 's' : ''}
+                                            </button>
+                                        )}
+
+                                        {/* Loading State */}
+                                        {slot.loading && (
+                                            <div className="text-center py-12">
+                                                <Loader2 className="w-16 h-16 text-amber-500 mx-auto mb-4 animate-spin" />
+                                                <p className="text-slate-300 text-lg font-semibold">Processing {slot.images.length} image{slot.images.length !== 1 ? 's' : ''} ({slot.variations} variation{slot.variations > 1 ? 's' : ''} each)...</p>
+                                                <p className="text-slate-500 text-sm mt-2">Generating {slot.images.length * slot.variations} total image{slot.images.length * slot.variations !== 1 ? 's' : ''}</p>
+                                            </div>
+                                        )}
+
+                                        {/* Results */}
+                                        {slot.results?.length > 0 && !slot.loading && (
+                                            <div className="mt-8 pt-8 border-t border-slate-700">
+                                                <div className="flex items-center justify-between mb-4">
+                                                    <h3 className="text-xl font-semibold text-white">
+                                                        ✅ {slot.results.length} Image{slot.results.length !== 1 ? 's' : ''} Generated
+                                                    </h3>
+                                                    <button
+                                                        onClick={() => {
+                                                            slot.results.forEach((result, idx) => {
+                                                                setTimeout(() => {
+                                                                    const link = document.createElement('a');
+                                                                    link.href = result;
+                                                                    link.download = `multi-edit-${index + 1}-${idx + 1}-${Date.now()}.jpg`;
+                                                                    link.click();
+                                                                }, idx * 200);
+                                                            });
+                                                        }}
+                                                        className="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors flex items-center gap-2"
+                                                    >
+                                                        <Download className="w-4 h-4" />
+                                                        Download All
+                                                    </button>
+                                                </div>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                    {slot.results.map((result, idx) => (
+                                                        <div key={idx} className="space-y-3">
+                                                            <div className="relative">
+                                                                <img
+                                                                    src={result}
+                                                                    alt={`Result ${idx + 1}`}
+                                                                    className="w-full rounded-lg border border-slate-600 shadow-lg cursor-pointer hover:border-purple-500 transition-colors"
+                                                                    onClick={() => openImageModal(result, `Multi-Edit Result ${idx + 1}`)}
+                                                                />
+                                                                <div className="absolute top-2 left-2 bg-black/60 text-white text-sm px-3 py-1 rounded-full">
+                                                                    #{idx + 1}
+                                                                </div>
+                                                            </div>
+                                                            <button
+                                                                onClick={() => {
+                                                                    const link = document.createElement('a');
+                                                                    link.href = result;
+                                                                    link.download = `multi-edit-${index + 1}-${idx + 1}-${Date.now()}.jpg`;
+                                                                    link.click();
+                                                                }}
+                                                                className="w-full bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+                                                            >
+                                                                <Download className="w-4 h-4" />
+                                                                Download #{idx + 1}
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+
+                                {/* Add Section Button */}
+                                {visibleMultiSlots < 20 && (
+                                    <button
+                                        onClick={() => {
+                                            const newSlot = {
+                                                id: generateUniqueId(),
+                                                images: [],
+                                                prompt: '',
+                                                aspectRatio: 'auto',
+                                                resolution: '4K',
+                                                variations: 1,
+                                                loading: false,
+                                                results: [],
+                                                error: null
+                                            };
+                                            setMultiSlotsArray(prev => [...prev, newSlot]);
+                                            setVisibleMultiSlots(prev => prev + 1);
+                                        }}
+                                        className="w-full py-3 border-2 border-dashed border-slate-600 hover:border-blue-500 rounded-lg text-slate-400 hover:text-blue-500 transition-all flex items-center justify-center gap-2"
+                                    >
+                                        <Plus className="w-5 h-5" />
+                                        <span>Add Section</span>
+                                    </button>
+                                )}
                             </div>
                         </div>
-
                         {/* MULTI-IMAGE GENERATOR (COMBINE) MODE */}
                         <div className={mode === 'combine' ? '' : 'hidden'}>
                             <div className="max-w-4xl mx-auto">
@@ -2883,7 +3202,7 @@
                                     Combine multiple images into one cohesive output - perfect for putting logos on products, merging scenes, or creative compositions
                                 </p>
                                 
-                                {/* Image Collection for Combine */}
+                                {/* Image Collection Dropdown at Top */}
                                 <div className="mb-4">
                                     <button
                                         onClick={() => setCollectionOpen(!collectionOpen)}
@@ -2899,317 +3218,44 @@
                                         <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform ${collectionOpen ? 'rotate-180' : ''}`} />
                                     </button>
                                     
-                                    {collectionOpen && uploadedCollection.length > 0 && (
+                                    {collectionOpen && (
                                         <div className="mt-2 bg-slate-800/50 border border-slate-700 rounded-lg p-4">
-                                            <p className="text-slate-400 text-sm mb-3">Click + to add images for combining</p>
-                                            <div className="grid grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2">
-                                                {uploadedCollection.map((img) => (
-                                                    <div 
-                                                        key={img.id} 
-                                                        className="relative group cursor-pointer"
-                                                        onClick={() => openImageModal(img.preview, img.fileName || 'Collection Image')}
-                                                    >
-                                                        <img
-                                                            src={img.preview}
-                                                            alt={img.fileName}
-                                                            className="w-full aspect-square object-cover rounded border border-slate-600 hover:border-purple-500 transition-colors"
-                                                        />
-                                                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded flex items-center justify-center">
-                                                            <button
-                                                                onClick={(e) => { 
-                                                                    e.stopPropagation(); 
-                                                                    useFromCollectionForCombine(img);
-                                                                }}
-                                                                className="bg-purple-500 hover:bg-purple-600 text-white p-1.5 rounded"
-                                                                title="Add to combine"
-                                                            >
-                                                                <Plus className="w-3 h-3" />
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div className="bg-slate-800 rounded-xl p-8 border border-slate-700 shadow-xl">
-                                    {combineError && (
-                                        <div className="bg-red-500/10 border border-red-500 rounded-lg p-4 mb-6">
-                                            <p className="text-red-400">{combineError}</p>
-                                        </div>
-                                    )}
-
-                                    {/* Image Upload */}
-                                    <div className="mb-6">
-                                        {/* When no images uploaded - show drag and drop zone */}
-                                        {combineImages.length === 0 && (
-                                            <div
-                                                className={`border-2 border-dashed rounded-lg p-12 text-center cursor-pointer transition-all ${
-                                                    combineDragActive
-                                                        ? 'border-purple-500 bg-purple-500/10'
-                                                        : 'border-slate-600 hover:border-purple-500 bg-slate-900/50'
-                                                }`}
-                                                onClick={() => combineFileInputRef.current?.click()}
-                                                onDragEnter={handleCombineDrag}
-                                                onDragLeave={handleCombineDrag}
-                                                onDragOver={handleCombineDrag}
-                                                onDrop={handleCombineDrop}
-                                            >
-                                                <Upload className="w-16 h-16 text-purple-400 mx-auto mb-4" />
-                                                <p className="text-white text-lg font-semibold mb-2">
-                                                    Drop Images Here to Combine
-                                                </p>
-                                                <p className="text-slate-400 mb-1">
-                                                    or click to browse
-                                                </p>
-                                                <p className="text-slate-500 text-sm">
-                                                    Upload multiple images to merge into one
-                                                </p>
-                                                <input
-                                                    ref={combineFileInputRef}
-                                                    type="file"
-                                                    multiple
-                                                    accept="image/*"
-                                                    className="hidden"
-                                                    onChange={handleCombineFileSelect}
-                                                />
-                                            </div>
-                                        )}
-
-                                        {/* When images are uploaded - show grid with add more button */}
-                                        {combineImages.length > 0 && (
-                                            <div className="space-y-4">
-                                                <div className="flex items-center justify-between">
-                                                    <div>
-                                                        <p className="text-slate-300 text-sm font-medium">
-                                                            {combineImages.length} image{combineImages.length !== 1 ? 's' : ''} to combine
-                                                        </p>
-                                                        <p className="text-slate-500 text-xs">
-                                                            {combineImages.length < 20 ? `Drop more images or click "Add More" (max 20 total)` : 'Maximum images reached'}
-                                                        </p>
-                                                    </div>
+                                            <div className="flex items-center justify-between mb-3">
+                                                <p className="text-slate-400 text-sm">Click an image to preview, use + to add to a section</p>
+                                                {uploadedCollection.length > 0 && (
                                                     <div className="flex gap-2">
-                                                        {combineImages.length < 20 && (
-                                                            <button
-                                                                onClick={() => combineFileInputRef.current?.click()}
-                                                                className="bg-purple-500 hover:bg-purple-600 text-white text-sm px-3 py-1.5 rounded flex items-center gap-1"
-                                                            >
-                                                                <Upload className="w-3 h-3" />
-                                                                Add More
-                                                            </button>
-                                                        )}
-                                                        <button
-                                                            onClick={clearCombineImages}
-                                                            className="text-red-400 hover:text-red-300 text-sm px-3 py-1.5 rounded border border-red-400/30 hover:border-red-400 flex items-center gap-1"
-                                                        >
-                                                            <X className="w-3 h-3" />
-                                                            Clear All
+                                                        <button onClick={downloadAllFromCollection} className="bg-green-500 hover:bg-green-600 text-white font-semibold py-1.5 px-3 rounded-lg transition-colors flex items-center gap-1.5 text-xs">
+                                                            <Download className="w-3 h-3" /> Download All
+                                                        </button>
+                                                        <button onClick={clearCollection} className="bg-red-500 hover:bg-red-600 text-white font-semibold py-1.5 px-3 rounded-lg transition-colors flex items-center gap-1.5 text-xs">
+                                                            <Trash className="w-3 h-3" /> Clear
                                                         </button>
                                                     </div>
-                                                </div>
-                                                <div 
-                                                    className={`grid grid-cols-2 md:grid-cols-4 gap-3 p-4 rounded-lg border-2 transition-all ${
-                                                        combineDragActive && combineImages.length < 20
-                                                            ? 'border-purple-500 bg-purple-500/10'
-                                                            : 'border-slate-700 bg-slate-900/30'
-                                                    }`}
-                                                    onDragEnter={combineImages.length < 20 ? handleCombineDrag : undefined}
-                                                    onDragLeave={combineImages.length < 20 ? handleCombineDrag : undefined}
-                                                    onDragOver={combineImages.length < 20 ? handleCombineDrag : undefined}
-                                                    onDrop={combineImages.length < 20 ? handleCombineDrop : undefined}
-                                                >
-                                                    {combineImages.map((img, idx) => (
-                                                        <div key={idx} className="relative group">
-                                                            <img
-                                                                src={img.preview}
-                                                                alt={`Input ${idx + 1}`}
-                                                                className="w-full aspect-square object-cover rounded-lg border-2 border-purple-500/50"
-                                                            />
-                                                            <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                <button
-                                                                    onClick={() => {
-                                                                        const link = document.createElement('a');
-                                                                        link.href = img.preview;
-                                                                        link.download = `combine-source-${idx + 1}.jpg`;
-                                                                        document.body.appendChild(link);
-                                                                        link.click();
-                                                                        document.body.removeChild(link);
-                                                                    }}
-                                                                    className="bg-green-500 hover:bg-green-600 text-white rounded-full p-1"
-                                                                    title="Download"
-                                                                >
-                                                                    <Download className="w-3 h-3" />
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => addToCollection(img.preview, `combine-${idx + 1}.jpg`)}
-                                                                    className="bg-blue-500 hover:bg-blue-600 text-white rounded-full p-1"
-                                                                    title="Save to Collection"
-                                                                >
-                                                                    <Folder className="w-3 h-3" />
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => removeCombineImage(idx)}
-                                                                    className="bg-red-500 hover:bg-red-600 text-white rounded-full p-1"
-                                                                >
-                                                                    <X className="w-3 h-3" />
-                                                                </button>
-                                                            </div>
-                                                            <div className="absolute bottom-1 left-1 bg-purple-600 text-white text-xs px-2 py-1 rounded font-semibold">
-                                                                #{idx + 1}
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                    {/* Show placeholder slots for remaining images */}
-                                                    {combineImages.length < 20 && Array.from({ length: Math.min(20 - combineImages.length, 4) }).map((_, idx) => (
-                                                        <div 
-                                                            key={`placeholder-${idx}`} 
-                                                            className="aspect-square rounded-lg border-2 border-dashed border-slate-600 bg-slate-800/50 flex items-center justify-center cursor-pointer hover:border-purple-500 transition-colors"
-                                                            onClick={() => combineFileInputRef.current?.click()}
-                                                        >
-                                                            <div className="text-center">
-                                                                <Upload className="w-6 h-6 text-slate-500 mx-auto mb-1" />
-                                                                <p className="text-slate-500 text-xs">Drop or Click</p>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                                <input
-                                                    ref={combineFileInputRef}
-                                                    type="file"
-                                                    multiple
-                                                    accept="image/*"
-                                                    className="hidden"
-                                                    onChange={handleCombineFileSelect}
-                                                />
+                                                )}
                                             </div>
-                                        )}
-                                    </div>
-
-                                    {/* Combination Prompt */}
-                                    <div className="mb-6">
-                                        <label className="block text-sm font-medium text-slate-300 mb-2">
-                                            How to Combine the Images
-                                        </label>
-                                        <textarea
-                                            value={combinePrompt}
-                                            onChange={(e) => setCombinePrompt(e.target.value)}
-                                            placeholder="Combine these images into one scene... Examples:&#10;• 'Put the logo from image 1 on the product in image 2 in a metallic style'&#10;• 'Merge all these people into one group photo at a beach sunset'&#10;• 'Place the furniture from images 1-3 into the room from image 4'"
-                                            className="w-full h-40 bg-slate-900 text-white rounded-lg p-4 border border-slate-600 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 resize-none"
-                                        />
-                                        <p className="text-slate-500 text-xs mt-2">💡 Be specific about which images to use and how to combine them</p>
-                                    </div>
-
-                                    {/* Shared Settings */}
-                                    <div className="grid grid-cols-3 gap-4 mb-6">
-                                        <div>
-                                            <label className="block text-sm font-medium text-slate-300 mb-2">
-                                                Output Aspect Ratio
-                                            </label>
-                                            <select
-                                                value={combineAspectRatio}
-                                                onChange={(e) => setCombineAspectRatio(e.target.value)}
-                                                className="w-full bg-slate-900 text-white rounded-lg p-3 border border-slate-600 focus:border-purple-500 focus:outline-none cursor-pointer"
+                                            <div
+                                                className="border-2 border-dashed border-slate-600 hover:border-purple-500 rounded-lg p-4 text-center transition-all mb-4"
+                                                onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                                                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                                                onDrop={(e) => {
+                                                    e.preventDefault(); e.stopPropagation();
+                                                    Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/')).forEach(file => {
+                                                        const reader = new FileReader();
+                                                        reader.onloadend = () => addToCollection(reader.result, file.name);
+                                                        reader.readAsDataURL(file);
+                                                    });
+                                                }}
                                             >
-                                                <option value="auto">Auto</option>
-                                                <option value="1:1">1:1 (Square)</option>
-                                                <option value="16:9">16:9 (Widescreen)</option>
-                                                <option value="9:16">9:16 (Vertical)</option>
-                                                <option value="4:3">4:3 (Landscape)</option>
-                                                <option value="3:4">3:4 (Portrait)</option>
-                                                <option value="21:9">21:9 (Ultrawide)</option>
-                                                <option value="2:3">2:3</option>
-                                                <option value="3:2">3:2</option>
-                                                <option value="4:5">4:5</option>
-                                                <option value="5:4">5:4</option>
-                                            </select>
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-sm font-medium text-slate-300 mb-2">
-                                                Output Resolution
-                                            </label>
-                                            <select
-                                                value={combineResolution}
-                                                onChange={(e) => setCombineResolution(e.target.value)}
-                                                className="w-full bg-slate-900 text-white rounded-lg p-3 border border-slate-600 focus:border-purple-500 focus:outline-none cursor-pointer"
-                                            >
-                                                <option value="1K">1K</option>
-                                                <option value="2K">2K</option>
-                                                <option value="4K">4K (Recommended)</option>
-                                            </select>
-                                        </div>
-                                        
-                                        <div>
-                                            <label className="block text-sm font-medium text-slate-300 mb-2">
-                                                Combined Variations
-                                            </label>
-                                            <select
-                                                value={combineSlots}
-                                                onChange={(e) => setCombineSlots(Number(e.target.value))}
-                                                className="w-full bg-slate-900 text-white rounded-lg p-3 border border-slate-600 focus:border-purple-500 focus:outline-none cursor-pointer"
-                                            >
-                                                {[1,2,3,4,5,6,7,8,9,10].map(n => (
-                                                    <option key={n} value={n}>{n} Variation{n !== 1 ? 's' : ''}</option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    </div>
-                                    
-                                    {/* Image Collection */}
-                                    <div className="mb-6 border border-slate-700 rounded-lg p-4 bg-slate-900/30">
-                                        <div className="flex items-center justify-between mb-3">
-                                            <div className="flex items-center gap-2">
-                                                <Folder className="w-4 h-4 text-blue-500" />
-                                                <span className="text-white font-medium text-sm">Image Collection</span>
-                                                <span className="text-slate-400 text-xs">({uploadedCollection.length} saved)</span>
+                                                <Folder className="w-6 h-6 text-purple-400 mx-auto mb-2" />
+                                                <p className="text-slate-300 text-sm">Drop images here to save to collection</p>
                                             </div>
                                             {uploadedCollection.length > 0 && (
-                                                <div className="flex gap-2">
-                                                    <button
-                                                        onClick={downloadAllFromCollection}
-                                                        className="bg-green-500 hover:bg-green-600 text-white font-semibold py-1 px-2 rounded transition-colors flex items-center gap-1 text-xs"
-                                                    >
-                                                        <Download className="w-3 h-3" />
-                                                        All
-                                                    </button>
-                                                    <button
-                                                        onClick={clearCollection}
-                                                        className="bg-red-500 hover:bg-red-600 text-white font-semibold py-1 px-2 rounded transition-colors flex items-center gap-1 text-xs"
-                                                    >
-                                                        <Trash className="w-3 h-3" />
-                                                        Clear
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </div>
-                                        <div
-                                            className="border-2 border-dashed border-slate-600 hover:border-purple-500 rounded-lg p-3 text-center cursor-pointer transition-all mb-3"
-                                            onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                                            onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                                            onDrop={(e) => {
-                                                e.preventDefault();
-                                                e.stopPropagation();
-                                                const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
-                                                files.forEach(file => {
-                                                    const reader = new FileReader();
-                                                    reader.onloadend = () => addToCollection(reader.result, file.name);
-                                                    reader.readAsDataURL(file);
-                                                });
-                                            }}
-                                        >
-                                            <Folder className="w-5 h-5 text-purple-400 mx-auto mb-1" />
-                                            <p className="text-slate-300 text-xs">Drop images here to save to collection</p>
-                                        </div>
-                                        {uploadedCollection.length > 0 && (
-                                            <div>
-                                                <p className="text-slate-500 text-xs mb-2">Click an image to add it for combining</p>
-                                                <div className="grid grid-cols-8 gap-2">
+                                                <div className="grid grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2">
                                                     {uploadedCollection.map((img) => (
-                                                        <div key={img.id} className="relative group cursor-pointer" onClick={() => useFromCollectionForCombine(img)}>
+                                                        <div key={img.id} className="relative group cursor-pointer" onClick={() => openImageModal(img.preview, img.fileName || 'Collection Image')}>
                                                             <img src={img.preview} alt={img.fileName} className="w-full aspect-square object-cover rounded border border-slate-600 hover:border-purple-500 transition-colors" />
                                                             <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded flex items-center justify-center gap-1">
-                                                                <button onClick={(e) => { e.stopPropagation(); useFromCollectionForCombine(img); }} className="bg-purple-500 hover:bg-purple-600 text-white p-1 rounded" title="Use">
+                                                                <button onClick={(e) => { e.stopPropagation(); addImageToCombineSlot(0, { id: generateUniqueId(), base64: img.preview.split(',')[1], preview: img.preview, fileName: img.fileName }); }} className="bg-amber-500 hover:bg-amber-600 text-white p-1 rounded" title="Add to section">
                                                                     <Plus className="w-2.5 h-2.5" />
                                                                 </button>
                                                                 <button onClick={(e) => { e.stopPropagation(); downloadFromCollection(img); }} className="bg-green-500 hover:bg-green-600 text-white p-1 rounded" title="Download">
@@ -3222,81 +3268,346 @@
                                                         </div>
                                                     ))}
                                                 </div>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Combine Button */}
-                                    {!combineLoading && (
-                                        <button
-                                            onClick={combineMergeImages}
-                                            disabled={combineImages.length < 2 || !combinePrompt.trim()}
-                                            className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:from-slate-700 disabled:to-slate-700 disabled:cursor-not-allowed text-white font-bold py-4 px-6 rounded-lg transition-all flex items-center justify-center gap-3 shadow-lg text-lg"
-                                        >
-                                            <Zap className="w-6 h-6" />
-                                            Combine {combineImages.length} Image{combineImages.length !== 1 ? 's' : ''} into One
-                                        </button>
-                                    )}
-
-                                    {/* Loading State */}
-                                    {combineLoading && (
-                                        <div className="text-center py-12">
-                                            <Loader2 className="w-16 h-16 text-purple-500 mx-auto mb-4 animate-spin" />
-                                            <p className="text-slate-300 text-lg font-semibold">Merging {combineImages.length} images together ({combineSlots} variation{combineSlots > 1 ? 's' : ''})...</p>
-                                            <p className="text-slate-500 text-sm mt-2">This may take {Math.ceil(combineSlots * 30)}-{Math.ceil(combineSlots * 60)} seconds</p>
-                                        </div>
-                                    )}
-
-                                    {/* Result */}
-                                    {combineResults.length > 0 && !combineLoading && (
-                                        <div className="mt-8 pt-8 border-t border-slate-700">
-                                            <div className="flex items-center justify-between mb-4">
-                                                <h3 className="text-xl font-semibold text-white flex items-center gap-2">
-                                                    <CheckCircle className="w-6 h-6 text-green-400" />
-                                                    {combineResults.length} Combined Image{combineResults.length > 1 ? 's' : ''} Created!
-                                                </h3>
-                                                {combineResults.length > 1 && (
-                                                    <button
-                                                        onClick={downloadAllCombined}
-                                                        className="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors flex items-center gap-2 text-sm"
-                                                    >
-                                                        <Download className="w-4 h-4" />
-                                                        Download All
-                                                    </button>
-                                                )}
-                                            </div>
-                                            <div className={`grid gap-6 ${combineResults.length === 1 ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'}`}>
-                                                {combineResults.map((result, idx) => (
-                                                    <div key={idx} className="space-y-3">
-                                                        <div className="relative">
-                                                            <img
-                                                                src={result}
-                                                                alt={`Combined ${idx + 1}`}
-                                                                className="w-full rounded-lg border-2 border-purple-500/50 shadow-2xl cursor-pointer hover:border-purple-400 transition-colors"
-                                                                onClick={() => openImageModal(result, `Combined Result ${idx + 1}`)}
-                                                            />
-                                                            {combineResults.length > 1 && (
-                                                                <div className="absolute top-2 left-2 bg-black/60 text-white text-sm px-3 py-1 rounded-full font-semibold">
-                                                                    #{idx + 1}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                        <button
-                                                            onClick={() => downloadCombined(idx)}
-                                                            className="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
-                                                        >
-                                                            <Download className="w-5 h-5" />
-                                                            Download {combineResults.length > 1 ? `#${idx + 1}` : 'Combined Image'}
-                                                        </button>
-                                                    </div>
-                                                ))}
-                                            </div>
+                                            )}
                                         </div>
                                     )}
                                 </div>
+
+                                {/* Combine Sections */}
+                                {combineSlotsArray.slice(0, visibleCombineSlots).map((slot, index) => (
+                                    <div key={slot.id} className="bg-slate-800 rounded-xl p-8 border border-slate-700 shadow-xl mb-6">
+                                        {/* Section Header */}
+                                        <div className="flex items-center justify-between mb-4">
+                                            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                                                Section {index + 1}
+                                                {slot.results?.length > 0 && <CheckCircle className="w-5 h-5 text-green-400" />}
+                                            </h3>
+                                            {visibleCombineSlots > 1 && (
+                                                <button
+                                                    onClick={() => {
+                                                        setCombineSlotsArray(prev => prev.filter((_, i) => i !== index));
+                                                        setVisibleCombineSlots(prev => prev - 1);
+                                                    }}
+                                                    className="text-slate-500 hover:text-red-400 p-1 transition-colors"
+                                                    title="Remove section"
+                                                >
+                                                    <X className="w-5 h-5" />
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        {slot.error && (
+                                            <div className="bg-red-500/10 border border-red-500 rounded-lg p-4 mb-6">
+                                                <p className="text-red-400">{slot.error}</p>
+                                            </div>
+                                        )}
+
+                                        {/* Image Upload */}
+                                        <div className="mb-6">
+                                            {/* When no images uploaded - show drag and drop zone */}
+                                            {slot.images.length === 0 && (
+                                                <div
+                                                    className="border-2 border-dashed rounded-lg p-12 text-center cursor-pointer transition-all border-slate-600 hover:border-purple-500 bg-slate-900/50"
+                                                    onClick={() => combineFileInputRefs.current[index]?.click()}
+                                                    onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                                                    onDrop={(e) => handleCombineSlotDrop(index, e)}
+                                                >
+                                                    <Upload className="w-16 h-16 text-purple-400 mx-auto mb-4" />
+                                                    <p className="text-white text-lg font-semibold mb-2">
+                                                        Drop Images Here to Combine
+                                                    </p>
+                                                    <p className="text-slate-400 mb-1">
+                                                        or click to browse
+                                                    </p>
+                                                    <p className="text-slate-500 text-sm">
+                                                        Upload multiple images to merge into one
+                                                    </p>
+                                                    <input
+                                                        ref={el => combineFileInputRefs.current[index] = el}
+                                                        type="file"
+                                                        multiple
+                                                        accept="image/*"
+                                                        className="hidden"
+                                                        onChange={(e) => handleCombineSlotFileSelect(index, e)}
+                                                    />
+                                                </div>
+                                            )}
+
+                                            {/* When images are uploaded - show grid with add more button */}
+                                            {slot.images.length > 0 && (
+                                                <div className="space-y-4">
+                                                    <div className="flex items-center justify-between">
+                                                        <div>
+                                                            <p className="text-slate-300 text-sm font-medium">
+                                                                {slot.images.length} image{slot.images.length !== 1 ? 's' : ''} to combine
+                                                            </p>
+                                                            <p className="text-slate-500 text-xs">
+                                                                {slot.images.length < 20 ? `Drop more images or click "Add More"` : 'Maximum images reached'}
+                                                            </p>
+                                                        </div>
+                                                        <div className="flex gap-2">
+                                                            {slot.images.length < 20 && (
+                                                                <button
+                                                                    onClick={() => combineFileInputRefs.current[index]?.click()}
+                                                                    className="bg-purple-500 hover:bg-purple-600 text-white text-sm px-3 py-1.5 rounded flex items-center gap-1"
+                                                                >
+                                                                    <Upload className="w-3 h-3" />
+                                                                    Add More
+                                                                </button>
+                                                            )}
+                                                            <button
+                                                                onClick={() => clearCombineSlot(index)}
+                                                                className="text-red-400 hover:text-red-300 text-sm px-3 py-1.5 rounded border border-red-400/30 hover:border-red-400 flex items-center gap-1"
+                                                            >
+                                                                <X className="w-3 h-3" />
+                                                                Clear All
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                    <div 
+                                                        className="grid grid-cols-2 md:grid-cols-4 gap-3 p-4 rounded-lg border-2 transition-all border-slate-700 bg-slate-900/30"
+                                                        onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                                                        onDrop={(e) => slot.images.length < 20 ? handleCombineSlotDrop(index, e) : null}
+                                                    >
+                                                        {slot.images.map((img, imgIdx) => (
+                                                            <div key={img.id} className="relative group">
+                                                                <img
+                                                                    src={img.preview}
+                                                                    alt={`Input ${imgIdx + 1}`}
+                                                                    className="w-full aspect-square object-cover rounded-lg border-2 border-purple-500/50 cursor-pointer"
+                                                                    onClick={() => openImageModal(img.preview, img.fileName || `Image ${imgIdx + 1}`)}
+                                                                />
+                                                                <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            const link = document.createElement('a');
+                                                                            link.href = img.preview;
+                                                                            link.download = `combine-source-${imgIdx + 1}.jpg`;
+                                                                            link.click();
+                                                                        }}
+                                                                        className="bg-green-500 hover:bg-green-600 text-white rounded-full p-1"
+                                                                        title="Download"
+                                                                    >
+                                                                        <Download className="w-3 h-3" />
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => addToCollection(img.preview, img.fileName || `combine-${imgIdx + 1}.jpg`)}
+                                                                        className="bg-blue-500 hover:bg-blue-600 text-white rounded-full p-1"
+                                                                        title="Save to Collection"
+                                                                    >
+                                                                        <Folder className="w-3 h-3" />
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => removeImageFromCombineSlot(index, imgIdx)}
+                                                                        className="bg-red-500 hover:bg-red-600 text-white rounded-full p-1"
+                                                                    >
+                                                                        <X className="w-3 h-3" />
+                                                                    </button>
+                                                                </div>
+                                                                <div className="absolute bottom-1 left-1 bg-purple-600 text-white text-xs px-2 py-1 rounded font-semibold">
+                                                                    #{imgIdx + 1}
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                        {/* Show placeholder slots for remaining images */}
+                                                        {slot.images.length < 20 && Array.from({ length: Math.min(20 - slot.images.length, 4) }).map((_, idx) => (
+                                                            <div 
+                                                                key={`placeholder-${idx}`} 
+                                                                className="aspect-square rounded-lg border-2 border-dashed border-slate-600 bg-slate-800/50 flex items-center justify-center cursor-pointer hover:border-purple-500 transition-colors"
+                                                                onClick={() => combineFileInputRefs.current[index]?.click()}
+                                                            >
+                                                                <div className="text-center">
+                                                                    <Upload className="w-6 h-6 text-slate-500 mx-auto mb-1" />
+                                                                    <p className="text-slate-500 text-xs">Drop or Click</p>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                    <input
+                                                        ref={el => combineFileInputRefs.current[index] = el}
+                                                        type="file"
+                                                        multiple
+                                                        accept="image/*"
+                                                        className="hidden"
+                                                        onChange={(e) => handleCombineSlotFileSelect(index, e)}
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Combination Prompt */}
+                                        <div className="mb-6">
+                                            <label className="block text-sm font-medium text-slate-300 mb-2">
+                                                How to Combine the Images
+                                            </label>
+                                            <textarea
+                                                value={slot.prompt}
+                                                onChange={(e) => updateCombineSlot(index, { prompt: e.target.value })}
+                                                placeholder="Combine these images into one scene... Examples:&#10;• 'Put the logo from image 1 on the product in image 2 in a metallic style'&#10;• 'Merge all these people into one group photo at a beach sunset'&#10;• 'Place the furniture from images 1-3 into the room from image 4'"
+                                                className="w-full h-56 bg-slate-900 text-white rounded-lg p-4 border border-slate-600 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 resize-none"
+                                            />
+                                            <p className="text-slate-500 text-xs mt-2">💡 Be specific about which images to use and how to combine them</p>
+                                        </div>
+
+                                        {/* Shared Settings */}
+                                        <div className="grid grid-cols-3 gap-4 mb-6">
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-300 mb-2">
+                                                    Output Aspect Ratio
+                                                </label>
+                                                <select
+                                                    value={slot.aspectRatio}
+                                                    onChange={(e) => updateCombineSlot(index, { aspectRatio: e.target.value })}
+                                                    className="w-full bg-slate-900 text-white rounded-lg p-3 border border-slate-600 focus:border-purple-500 focus:outline-none cursor-pointer"
+                                                >
+                                                    <option value="auto">Auto</option>
+                                                    <option value="1:1">1:1 (Square)</option>
+                                                    <option value="16:9">16:9 (Widescreen)</option>
+                                                    <option value="9:16">9:16 (Vertical)</option>
+                                                    <option value="4:3">4:3 (Landscape)</option>
+                                                    <option value="3:4">3:4 (Portrait)</option>
+                                                    <option value="21:9">21:9 (Ultrawide)</option>
+                                                    <option value="2:3">2:3</option>
+                                                    <option value="3:2">3:2</option>
+                                                    <option value="4:5">4:5</option>
+                                                    <option value="5:4">5:4</option>
+                                                </select>
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-300 mb-2">
+                                                    Output Resolution
+                                                </label>
+                                                <select
+                                                    value={slot.resolution}
+                                                    onChange={(e) => updateCombineSlot(index, { resolution: e.target.value })}
+                                                    className="w-full bg-slate-900 text-white rounded-lg p-3 border border-slate-600 focus:border-purple-500 focus:outline-none cursor-pointer"
+                                                >
+                                                    <option value="1K">1K</option>
+                                                    <option value="2K">2K</option>
+                                                    <option value="4K">4K (Recommended)</option>
+                                                </select>
+                                            </div>
+                                            
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-300 mb-2">
+                                                    Combined Variations
+                                                </label>
+                                                <select
+                                                    value={slot.variations}
+                                                    onChange={(e) => updateCombineSlot(index, { variations: Number(e.target.value) })}
+                                                    className="w-full bg-slate-900 text-white rounded-lg p-3 border border-slate-600 focus:border-purple-500 focus:outline-none cursor-pointer"
+                                                >
+                                                    {[1,2,3,4,5,6,7,8,9,10].map(n => (
+                                                        <option key={n} value={n}>{n} Variation{n !== 1 ? 's' : ''}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        {/* Combine Button */}
+                                        {!slot.loading && (
+                                            <button
+                                                onClick={() => processCombineSlot(index)}
+                                                disabled={slot.images.length < 2 || !slot.prompt.trim()}
+                                                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:from-slate-700 disabled:to-slate-700 disabled:cursor-not-allowed text-white font-bold py-4 px-6 rounded-lg transition-all flex items-center justify-center gap-3 shadow-lg text-lg"
+                                            >
+                                                <Zap className="w-6 h-6" />
+                                                Combine {slot.images.length} Image{slot.images.length !== 1 ? 's' : ''} into One
+                                            </button>
+                                        )}
+
+                                        {/* Loading State */}
+                                        {slot.loading && (
+                                            <div className="text-center py-12">
+                                                <Loader2 className="w-16 h-16 text-purple-500 mx-auto mb-4 animate-spin" />
+                                                <p className="text-slate-300 text-lg font-semibold">Merging {slot.images.length} images together ({slot.variations} variation{slot.variations > 1 ? 's' : ''})...</p>
+                                                <p className="text-slate-500 text-sm mt-2">This may take {Math.ceil(slot.variations * 30)}-{Math.ceil(slot.variations * 60)} seconds</p>
+                                            </div>
+                                        )}
+
+                                        {/* Results */}
+                                        {slot.results?.length > 0 && !slot.loading && (
+                                            <div className="mt-8 pt-8 border-t border-slate-700">
+                                                <div className="flex items-center justify-between mb-4">
+                                                    <h3 className="text-xl font-semibold text-white flex items-center gap-2">
+                                                        <CheckCircle className="w-6 h-6 text-green-400" />
+                                                        {slot.results.length} Combined Image{slot.results.length > 1 ? 's' : ''} Created!
+                                                    </h3>
+                                                    {slot.results.length > 1 && (
+                                                        <button
+                                                            onClick={() => {
+                                                                slot.results.forEach((result, idx) => {
+                                                                    setTimeout(() => {
+                                                                        const link = document.createElement('a');
+                                                                        link.href = result;
+                                                                        link.download = `combined-${index + 1}-${idx + 1}-${Date.now()}.jpg`;
+                                                                        link.click();
+                                                                    }, idx * 200);
+                                                                });
+                                                            }}
+                                                            className="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors flex items-center gap-2"
+                                                        >
+                                                            <Download className="w-4 h-4" />
+                                                            Download All
+                                                        </button>
+                                                    )}
+                                                </div>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                    {slot.results.map((result, idx) => (
+                                                        <div key={idx} className="space-y-3">
+                                                            <img
+                                                                src={result}
+                                                                alt={`Combined ${idx + 1}`}
+                                                                className="w-full rounded-lg border border-slate-600 shadow-lg cursor-pointer hover:border-purple-500 transition-colors"
+                                                                onClick={() => openImageModal(result, `Combined Result ${idx + 1}`)}
+                                                            />
+                                                            <button
+                                                                onClick={() => {
+                                                                    const link = document.createElement('a');
+                                                                    link.href = result;
+                                                                    link.download = `combined-${index + 1}-${idx + 1}-${Date.now()}.jpg`;
+                                                                    link.click();
+                                                                }}
+                                                                className="w-full bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+                                                            >
+                                                                <Download className="w-4 h-4" />
+                                                                Download Variation {idx + 1}
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+
+                                {/* Add Section Button */}
+                                {visibleCombineSlots < 20 && (
+                                    <button
+                                        onClick={() => {
+                                            const newSlot = {
+                                                id: generateUniqueId(),
+                                                images: [],
+                                                prompt: '',
+                                                aspectRatio: '16:9',
+                                                resolution: '4K',
+                                                variations: 1,
+                                                loading: false,
+                                                results: [],
+                                                error: null
+                                            };
+                                            setCombineSlotsArray(prev => [...prev, newSlot]);
+                                            setVisibleCombineSlots(prev => prev + 1);
+                                        }}
+                                        className="w-full py-3 border-2 border-dashed border-slate-600 hover:border-purple-500 rounded-lg text-slate-400 hover:text-purple-500 transition-all flex items-center justify-center gap-2"
+                                    >
+                                        <Plus className="w-5 h-5" />
+                                        <span>Add Section</span>
+                                    </button>
+                                )}
                             </div>
                         </div>
-
                         {/* GENERATE MODE */}
                         <div className={mode === 'generate' ? '' : 'hidden'}>
                             <div className="max-w-5xl mx-auto">
@@ -3363,7 +3674,7 @@
                                                         value={slot.prompt}
                                                         onChange={(e) => updateGenSlot(index, { prompt: e.target.value })}
                                                         placeholder="Describe your image... e.g., A photorealistic sunset over mountains with dramatic clouds..."
-                                                        className="w-full h-32 bg-slate-900 text-white rounded-lg p-3 border border-slate-600 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 resize-none text-sm"
+                                                        className="w-full h-48 bg-slate-900 text-white rounded-lg p-3 border border-slate-600 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 resize-none text-sm"
                                                     />
 
                                                     <div className="grid grid-cols-3 gap-3">
