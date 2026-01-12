@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🍌 Nano Banana Unleashed</title>
+    <title>Nana Banana Unleashed - Edit & Generate</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍌</text></svg>">
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -465,8 +465,8 @@
             // Mode state
             const [mode, setMode] = useState('edit'); // 'edit', 'generate', 'multi', or 'combine'
 
-            // EDIT MODE: Initialize 10 image slots
-            const [images, setImages] = useState(Array(10).fill(null).map((_, idx) => ({
+            // EDIT MODE: Initialize image slots
+            const [images, setImages] = useState(Array(20).fill(null).map((_, idx) => ({
                 id: idx,
                 image: null,
                 imagePreview: null,
@@ -480,7 +480,7 @@
                 error: null
             })));
 
-            const [visibleSlots, setVisibleSlots] = useState(1); // How many slots to show (1-10)
+            const [visibleSlots, setVisibleSlots] = useState(1); // How many slots to show
             
             // History and collection - will load from IndexedDB
             const [history, setHistory] = useState([]);
@@ -652,7 +652,7 @@
                 if (currentAvailable < duplicateCount) {
                     // Calculate how many more slots we need
                     const slotsNeeded = duplicateCount - currentAvailable;
-                    const newVisibleSlots = Math.min(10, visibleSlots + slotsNeeded);
+                    const newVisibleSlots = Math.min(20, visibleSlots + slotsNeeded);
                     setVisibleSlots(newVisibleSlots);
                     
                     // Use timeout to let state update, then fill
@@ -733,7 +733,7 @@
                 // If more files than available slots, auto-expand visible slots
                 if (files.length > availableSlots.length) {
                     const slotsNeeded = files.length - availableSlots.length;
-                    const newVisibleSlots = Math.min(10, visibleSlots + slotsNeeded);
+                    const newVisibleSlots = Math.min(20, visibleSlots + slotsNeeded);
                     setVisibleSlots(newVisibleSlots);
                     
                     // Recalculate available slots with new visible count
@@ -751,9 +751,9 @@
                     }
                 });
 
-                // Only show alert if we couldn't fit all images (hit 10 slot limit)
+                // Only show alert if we couldn't fit all images (hit slot limit)
                 if (files.length > availableSlots.length) {
-                    alert(`Uploaded ${availableSlots.length} images. ${files.length - availableSlots.length} images skipped (max 10 slots).`);
+                    alert(`Uploaded ${availableSlots.length} images. ${files.length - availableSlots.length} images skipped (max slots).`);
                 }
             };
             
@@ -1018,9 +1018,9 @@
                 const availableSlotIndex = images.slice(0, visibleSlots).findIndex(slot => !slot.image);
                 if (availableSlotIndex === -1) {
                     // No available slots, try to expand
-                    if (visibleSlots < 10) {
+                    if (visibleSlots < 20) {
                         setVisibleSlots(prev => {
-                            const newSlots = Math.min(10, prev + 1);
+                            const newSlots = Math.min(20, prev + 1);
                             // Use the new slot
                             setTimeout(() => {
                                 updateImage(prev, {
@@ -1034,7 +1034,7 @@
                             return newSlots;
                         });
                     } else {
-                        alert('All 10 slots are in use. Remove an image first.');
+                        alert('All slots are in use. Remove an image first.');
                     }
                     return;
                 }
@@ -1048,8 +1048,8 @@
             };
             
             const useFromCollectionForMulti = (img) => {
-                if (multiImages.length >= 10) {
-                    alert('Maximum 10 images reached. Remove some first.');
+                if (multiImages.length >= 20) {
+                    alert('Maximum images reached. Remove some first.');
                     return;
                 }
                 setMultiImages(prev => [...prev, {
@@ -1060,8 +1060,8 @@
             };
             
             const useFromCollectionForCombine = (img) => {
-                if (combineImages.length >= 8) {
-                    alert('Maximum 8 images reached. Remove some first.');
+                if (combineImages.length >= 20) {
+                    alert('Maximum images reached. Remove some first.');
                     return;
                 }
                 setCombineImages(prev => [...prev, {
@@ -1217,7 +1217,7 @@
             };
             
             const addGenSlot = () => {
-                if (genSlotsArray.length >= 10) return;
+                if (genSlotsArray.length >= 20) return;
                 setGenSlotsArray(prev => [...prev, {
                     id: generateUniqueId(),
                     prompt: '',
@@ -1228,7 +1228,7 @@
                     results: [],
                     error: null
                 }]);
-                setVisibleGenSlots(prev => Math.min(10, prev + 1));
+                setVisibleGenSlots(prev => Math.min(20, prev + 1));
             };
             
             const removeGenSlot = (index) => {
@@ -1395,7 +1395,7 @@
                 });
 
                 if (files.length > remainingSlots) {
-                    alert(`Added ${filesToProcess.length} images. ${files.length - filesToProcess.length} skipped (max 10 images total)`);
+                    alert(`Added ${filesToProcess.length} images. ${files.length - filesToProcess.length} skipped (max 20 images total)`);
                 }
             };
 
@@ -1435,7 +1435,7 @@
                 });
 
                 if (files.length > remainingSlots) {
-                    alert(`Added ${filesToProcess.length} images. ${files.length - filesToProcess.length} skipped (max 10 images total)`);
+                    alert(`Added ${filesToProcess.length} images. ${files.length - filesToProcess.length} skipped (max 20 images total)`);
                 }
             };
 
@@ -1578,7 +1578,7 @@
 
                 if (files.length === 0) return;
 
-                // Calculate how many more images we can add (max 8 total)
+                // Calculate how many more images we can add (max 20 total)
                 const remainingSlots = 8 - combineImages.length;
                 const filesToProcess = files.slice(0, remainingSlots);
 
@@ -1607,7 +1607,7 @@
                 });
 
                 if (files.length > remainingSlots) {
-                    alert(`Added ${filesToProcess.length} images. ${files.length - filesToProcess.length} skipped (max 8 images total)`);
+                    alert(`Added ${filesToProcess.length} images. ${files.length - filesToProcess.length} skipped (max 20 images total)`);
                 }
             };
 
@@ -1618,7 +1618,7 @@
 
                 if (files.length === 0) return;
 
-                // Calculate how many more images we can add (max 8 total)
+                // Calculate how many more images we can add (max 20 total)
                 const remainingSlots = 8 - combineImages.length;
                 const filesToProcess = files.slice(0, remainingSlots);
 
@@ -1647,7 +1647,7 @@
                 });
 
                 if (files.length > remainingSlots) {
-                    alert(`Added ${filesToProcess.length} images. ${files.length - filesToProcess.length} skipped (max 8 images total)`);
+                    alert(`Added ${filesToProcess.length} images. ${files.length - filesToProcess.length} skipped (max 20 images total)`);
                 }
             };
 
@@ -1794,7 +1794,7 @@
                         <div className="text-center mb-8">
                             <div className="flex items-center justify-center gap-3 mb-4 relative">
                                 <span className="text-5xl">🍌</span>
-                                <h1 className="text-4xl font-bold text-white">Nano Banana Unleashed</h1>
+                                <h1 className="text-4xl font-bold text-white">Nana Banana Unleashed</h1>
                                 <button
                                     onClick={() => setSettingsOpen(true)}
                                     className={`absolute right-0 p-3 rounded-lg transition-all ${
@@ -1833,16 +1833,7 @@
                                     }`}
                                 >
                                     <Camera className="w-5 h-5" />
-                                    Batch Editor (10)
-                                </button>
-                                <button
-                                    onClick={() => handleModeChange('multi')}
-                                    className={`mode-tab px-6 py-3 rounded-lg font-semibold text-white flex items-center gap-2 ${
-                                        mode === 'multi' ? 'active' : 'bg-slate-700 hover:bg-slate-600'
-                                    }`}
-                                >
-                                    <Upload className="w-5 h-5" />
-                                    Multi-Image Edit
+                                    Image Editor
                                 </button>
                                 <button
                                     onClick={() => handleModeChange('combine')}
@@ -1852,6 +1843,15 @@
                                 >
                                     <Zap className="w-5 h-5" />
                                     Multi-Image Generator
+                                </button>
+                                <button
+                                    onClick={() => handleModeChange('multi')}
+                                    className={`mode-tab px-6 py-3 rounded-lg font-semibold text-white flex items-center gap-2 ${
+                                        mode === 'multi' ? 'active' : 'bg-slate-700 hover:bg-slate-600'
+                                    }`}
+                                >
+                                    <Upload className="w-5 h-5" />
+                                    Multi-Image Edit
                                 </button>
                                 <button
                                     onClick={() => handleModeChange('generate')}
@@ -1868,7 +1868,7 @@
                         {/* EDIT MODE */}
                         <div className={mode === 'edit' ? '' : 'hidden'}>
                             <p className="text-slate-400 text-lg mb-4 text-center">
-                                Edit up to 10 images simultaneously with individual settings
+                                Edit multiple images simultaneously with individual settings
                             </p>
                             
                                 
@@ -1906,7 +1906,7 @@
                                                         Drop Images to Fill Slots
                                                     </p>
                                                     <p className="text-slate-400 text-xs mb-2">
-                                                        Drag and drop images to auto-fill available slots (auto-expands up to 10)
+                                                        Drag and drop images to auto-fill available slots (auto-expands as needed)
                                                     </p>
                                                     {getAvailableSlots() < visibleSlots && (
                                                         <p className="text-amber-400 text-xs">
@@ -2034,7 +2034,7 @@
                                         <div className="mt-2 bg-slate-800/50 border border-slate-700 rounded-lg p-4">
                                             <div className="flex items-center justify-between mb-3">
                                                 <p className="text-slate-400 text-sm">
-                                                    Click an image to use it in the current mode
+                                                    Click an image to preview, use + button to add
                                                 </p>
                                                 {uploadedCollection.length > 0 && (
                                                     <div className="flex gap-2">
@@ -2084,11 +2084,7 @@
                                                         <div 
                                                             key={img.id} 
                                                             className="relative group cursor-pointer"
-                                                            onClick={() => {
-                                                                if (mode === 'edit') useFromCollectionForBatch(img);
-                                                                else if (mode === 'multi') useFromCollectionForMulti(img);
-                                                                else if (mode === 'combine') useFromCollectionForCombine(img);
-                                                            }}
+                                                            onClick={() => openImageModal(img.preview, img.fileName || 'Collection Image')}
                                                         >
                                                             <img
                                                                 src={img.preview}
@@ -2099,12 +2095,14 @@
                                                                 <button
                                                                     onClick={(e) => { 
                                                                         e.stopPropagation(); 
-                                                                        openImageModal(img.preview, img.fileName || 'Collection Image');
+                                                                        if (mode === 'edit') useFromCollectionForBatch(img);
+                                                                        else if (mode === 'multi') useFromCollectionForMulti(img);
+                                                                        else if (mode === 'combine') useFromCollectionForCombine(img);
                                                                     }}
-                                                                    className="bg-blue-500 hover:bg-blue-600 text-white p-1 rounded"
-                                                                    title="Preview Full Size"
+                                                                    className="bg-amber-500 hover:bg-amber-600 text-white p-1 rounded"
+                                                                    title="Use in current mode"
                                                                 >
-                                                                    <Camera className="w-2.5 h-2.5" />
+                                                                    <Plus className="w-2.5 h-2.5" />
                                                                 </button>
                                                                 <button
                                                                     onClick={(e) => { e.stopPropagation(); downloadFromCollection(img); }}
@@ -2184,9 +2182,24 @@
                                         <div key={img.id} className="bg-slate-800 rounded-xl p-6 border border-slate-700 shadow-xl">
                                             <div className="flex items-center justify-between mb-4">
                                                 <h3 className="text-xl font-semibold text-white">Image {index + 1}</h3>
-                                                {img.results && img.results.length > 0 && (
-                                                    <CheckCircle className="w-6 h-6 text-green-400" />
-                                                )}
+                                                <div className="flex items-center gap-2">
+                                                    {img.results && img.results.length > 0 && (
+                                                        <CheckCircle className="w-6 h-6 text-green-400" />
+                                                    )}
+                                                    {visibleSlots > 1 && (
+                                                        <button
+                                                            onClick={() => {
+                                                                // Clear the slot and reduce visible count
+                                                                removeImage(index);
+                                                                setVisibleSlots(prev => prev - 1);
+                                                            }}
+                                                            className="text-slate-500 hover:text-red-400 p-1 transition-colors"
+                                                            title="Remove slot"
+                                                        >
+                                                            <X className="w-5 h-5" />
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </div>
 
                                             <div className="grid md:grid-cols-2 gap-6">
@@ -2435,6 +2448,17 @@
                                         </div>
                                     ))}
                                 </div>
+                                
+                                {/* Add Image Slot Button */}
+                                {visibleSlots < 20 && (
+                                    <button
+                                        onClick={() => setVisibleSlots(prev => Math.min(20, prev + 1))}
+                                        className="w-full mt-4 py-2 border-2 border-dashed border-slate-600 hover:border-amber-500 rounded-lg text-slate-400 hover:text-amber-500 transition-all flex items-center justify-center gap-2"
+                                    >
+                                        <Plus className="w-4 h-4" />
+                                        <span className="text-sm">Add Image Slot</span>
+                                    </button>
+                                )}
                             </div>
 
                         {/* MULTI-IMAGE EDIT MODE */}
@@ -2443,6 +2467,56 @@
                                 <p className="text-slate-400 text-lg mb-8 text-center">
                                     Upload multiple images and apply the same edits to all of them
                                 </p>
+                                
+                                {/* Image Collection for Multi-Edit */}
+                                <div className="mb-4">
+                                    <button
+                                        onClick={() => setCollectionOpen(!collectionOpen)}
+                                        className="w-full bg-slate-800 hover:bg-slate-750 border border-slate-700 rounded-lg px-4 py-3 flex items-center justify-between transition-all"
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <Folder className="w-5 h-5 text-blue-500" />
+                                            <span className="text-white font-medium">Image Collection</span>
+                                            <span className="text-slate-400 text-sm">
+                                                {uploadedCollection.length} saved image{uploadedCollection.length !== 1 ? 's' : ''}
+                                            </span>
+                                        </div>
+                                        <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform ${collectionOpen ? 'rotate-180' : ''}`} />
+                                    </button>
+                                    
+                                    {collectionOpen && uploadedCollection.length > 0 && (
+                                        <div className="mt-2 bg-slate-800/50 border border-slate-700 rounded-lg p-4">
+                                            <p className="text-slate-400 text-sm mb-3">Click + to add images from your collection</p>
+                                            <div className="grid grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2">
+                                                {uploadedCollection.map((img) => (
+                                                    <div 
+                                                        key={img.id} 
+                                                        className="relative group cursor-pointer"
+                                                        onClick={() => openImageModal(img.preview, img.fileName || 'Collection Image')}
+                                                    >
+                                                        <img
+                                                            src={img.preview}
+                                                            alt={img.fileName}
+                                                            className="w-full aspect-square object-cover rounded border border-slate-600 hover:border-blue-500 transition-colors"
+                                                        />
+                                                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded flex items-center justify-center">
+                                                            <button
+                                                                onClick={(e) => { 
+                                                                    e.stopPropagation(); 
+                                                                    useFromCollectionForMulti(img);
+                                                                }}
+                                                                className="bg-blue-500 hover:bg-blue-600 text-white p-1.5 rounded"
+                                                                title="Add to multi-edit"
+                                                            >
+                                                                <Plus className="w-3 h-3" />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
 
                                 <div className="bg-slate-800 rounded-xl p-8 border border-slate-700 shadow-xl">
                                     {multiError && (
@@ -2475,7 +2549,7 @@
                                                     or click to browse
                                                 </p>
                                                 <p className="text-slate-500 text-sm">
-                                                    Upload 2-10 images to edit with the same prompt
+                                                    Upload multiple images to edit with the same prompt
                                                 </p>
                                                 <input
                                                     ref={multiFileInputRef}
@@ -2497,11 +2571,11 @@
                                                             {multiImages.length} image{multiImages.length !== 1 ? 's' : ''} uploaded
                                                         </p>
                                                         <p className="text-slate-500 text-xs">
-                                                            {multiImages.length < 10 ? `Drop more images or click "Add More" (max 10 total)` : 'Maximum 10 images reached'}
+                                                            {multiImages.length < 20 ? `Drop more images or click "Add More" (max 20 total)` : 'Maximum images reached'}
                                                         </p>
                                                     </div>
                                                     <div className="flex gap-2">
-                                                        {multiImages.length < 10 && (
+                                                        {multiImages.length < 20 && (
                                                             <button
                                                                 onClick={() => multiFileInputRef.current?.click()}
                                                                 className="bg-blue-500 hover:bg-blue-600 text-white text-sm px-3 py-1.5 rounded flex items-center gap-1"
@@ -2521,14 +2595,14 @@
                                                 </div>
                                                 <div 
                                                     className={`grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 p-4 rounded-lg border-2 transition-all ${
-                                                        multiDragActive && multiImages.length < 10
+                                                        multiDragActive && multiImages.length < 20
                                                             ? 'border-blue-500 bg-blue-500/10'
                                                             : 'border-slate-700 bg-slate-900/30'
                                                     }`}
-                                                    onDragEnter={multiImages.length < 10 ? handleMultiDrag : undefined}
-                                                    onDragLeave={multiImages.length < 10 ? handleMultiDrag : undefined}
-                                                    onDragOver={multiImages.length < 10 ? handleMultiDrag : undefined}
-                                                    onDrop={multiImages.length < 10 ? handleMultiDrop : undefined}
+                                                    onDragEnter={multiImages.length < 20 ? handleMultiDrag : undefined}
+                                                    onDragLeave={multiImages.length < 20 ? handleMultiDrag : undefined}
+                                                    onDragOver={multiImages.length < 20 ? handleMultiDrag : undefined}
+                                                    onDrop={multiImages.length < 20 ? handleMultiDrop : undefined}
                                                 >
                                                     {multiImages.map((img, idx) => (
                                                         <div key={idx} className="relative group">
@@ -2572,7 +2646,7 @@
                                                         </div>
                                                     ))}
                                                     {/* Show placeholder slots for remaining images */}
-                                                    {multiImages.length < 10 && Array.from({ length: Math.min(10 - multiImages.length, 4) }).map((_, idx) => (
+                                                    {multiImages.length < 20 && Array.from({ length: Math.min(10 - multiImages.length, 4) }).map((_, idx) => (
                                                         <div 
                                                             key={`placeholder-${idx}`} 
                                                             className="aspect-square rounded-lg border-2 border-dashed border-slate-600 bg-slate-800/50 flex items-center justify-center cursor-pointer hover:border-blue-500 transition-colors"
@@ -2808,6 +2882,56 @@
                                 <p className="text-slate-400 text-lg mb-8 text-center">
                                     Combine multiple images into one cohesive output - perfect for putting logos on products, merging scenes, or creative compositions
                                 </p>
+                                
+                                {/* Image Collection for Combine */}
+                                <div className="mb-4">
+                                    <button
+                                        onClick={() => setCollectionOpen(!collectionOpen)}
+                                        className="w-full bg-slate-800 hover:bg-slate-750 border border-slate-700 rounded-lg px-4 py-3 flex items-center justify-between transition-all"
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <Folder className="w-5 h-5 text-purple-500" />
+                                            <span className="text-white font-medium">Image Collection</span>
+                                            <span className="text-slate-400 text-sm">
+                                                {uploadedCollection.length} saved image{uploadedCollection.length !== 1 ? 's' : ''}
+                                            </span>
+                                        </div>
+                                        <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform ${collectionOpen ? 'rotate-180' : ''}`} />
+                                    </button>
+                                    
+                                    {collectionOpen && uploadedCollection.length > 0 && (
+                                        <div className="mt-2 bg-slate-800/50 border border-slate-700 rounded-lg p-4">
+                                            <p className="text-slate-400 text-sm mb-3">Click + to add images for combining</p>
+                                            <div className="grid grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2">
+                                                {uploadedCollection.map((img) => (
+                                                    <div 
+                                                        key={img.id} 
+                                                        className="relative group cursor-pointer"
+                                                        onClick={() => openImageModal(img.preview, img.fileName || 'Collection Image')}
+                                                    >
+                                                        <img
+                                                            src={img.preview}
+                                                            alt={img.fileName}
+                                                            className="w-full aspect-square object-cover rounded border border-slate-600 hover:border-purple-500 transition-colors"
+                                                        />
+                                                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded flex items-center justify-center">
+                                                            <button
+                                                                onClick={(e) => { 
+                                                                    e.stopPropagation(); 
+                                                                    useFromCollectionForCombine(img);
+                                                                }}
+                                                                className="bg-purple-500 hover:bg-purple-600 text-white p-1.5 rounded"
+                                                                title="Add to combine"
+                                                            >
+                                                                <Plus className="w-3 h-3" />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
 
                                 <div className="bg-slate-800 rounded-xl p-8 border border-slate-700 shadow-xl">
                                     {combineError && (
@@ -2840,7 +2964,7 @@
                                                     or click to browse
                                                 </p>
                                                 <p className="text-slate-500 text-sm">
-                                                    Upload 2-8 images to merge into one
+                                                    Upload multiple images to merge into one
                                                 </p>
                                                 <input
                                                     ref={combineFileInputRef}
@@ -2862,11 +2986,11 @@
                                                             {combineImages.length} image{combineImages.length !== 1 ? 's' : ''} to combine
                                                         </p>
                                                         <p className="text-slate-500 text-xs">
-                                                            {combineImages.length < 8 ? `Drop more images or click "Add More" (max 8 total)` : 'Maximum 8 images reached'}
+                                                            {combineImages.length < 20 ? `Drop more images or click "Add More" (max 20 total)` : 'Maximum images reached'}
                                                         </p>
                                                     </div>
                                                     <div className="flex gap-2">
-                                                        {combineImages.length < 8 && (
+                                                        {combineImages.length < 20 && (
                                                             <button
                                                                 onClick={() => combineFileInputRef.current?.click()}
                                                                 className="bg-purple-500 hover:bg-purple-600 text-white text-sm px-3 py-1.5 rounded flex items-center gap-1"
@@ -2886,14 +3010,14 @@
                                                 </div>
                                                 <div 
                                                     className={`grid grid-cols-2 md:grid-cols-4 gap-3 p-4 rounded-lg border-2 transition-all ${
-                                                        combineDragActive && combineImages.length < 8
+                                                        combineDragActive && combineImages.length < 20
                                                             ? 'border-purple-500 bg-purple-500/10'
                                                             : 'border-slate-700 bg-slate-900/30'
                                                     }`}
-                                                    onDragEnter={combineImages.length < 8 ? handleCombineDrag : undefined}
-                                                    onDragLeave={combineImages.length < 8 ? handleCombineDrag : undefined}
-                                                    onDragOver={combineImages.length < 8 ? handleCombineDrag : undefined}
-                                                    onDrop={combineImages.length < 8 ? handleCombineDrop : undefined}
+                                                    onDragEnter={combineImages.length < 20 ? handleCombineDrag : undefined}
+                                                    onDragLeave={combineImages.length < 20 ? handleCombineDrag : undefined}
+                                                    onDragOver={combineImages.length < 20 ? handleCombineDrag : undefined}
+                                                    onDrop={combineImages.length < 20 ? handleCombineDrop : undefined}
                                                 >
                                                     {combineImages.map((img, idx) => (
                                                         <div key={idx} className="relative group">
@@ -2937,7 +3061,7 @@
                                                         </div>
                                                     ))}
                                                     {/* Show placeholder slots for remaining images */}
-                                                    {combineImages.length < 8 && Array.from({ length: Math.min(8 - combineImages.length, 4) }).map((_, idx) => (
+                                                    {combineImages.length < 20 && Array.from({ length: Math.min(20 - combineImages.length, 4) }).map((_, idx) => (
                                                         <div 
                                                             key={`placeholder-${idx}`} 
                                                             className="aspect-square rounded-lg border-2 border-dashed border-slate-600 bg-slate-800/50 flex items-center justify-center cursor-pointer hover:border-purple-500 transition-colors"
@@ -3180,39 +3304,8 @@
                                     Create images from text descriptions using AI
                                 </p>
                                 
-                                {/* Slot Controls */}
-                                <div className="flex items-center justify-center gap-4 mb-6">
-                                    <div className="inline-flex items-center gap-3 bg-slate-800 border border-slate-700 rounded-lg px-4 py-2">
-                                        <label className="text-slate-300 text-sm font-medium">Prompts:</label>
-                                        <select
-                                            value={visibleGenSlots}
-                                            onChange={(e) => {
-                                                const newCount = Number(e.target.value);
-                                                setVisibleGenSlots(newCount);
-                                                // Add slots if needed - do it in one update
-                                                setGenSlotsArray(prev => {
-                                                    if (prev.length >= newCount) return prev;
-                                                    const slotsToAdd = newCount - prev.length;
-                                                    const newSlots = Array.from({ length: slotsToAdd }).map((_, idx) => ({
-                                                        id: generateUniqueId(),
-                                                        prompt: '',
-                                                        aspectRatio: 'auto',
-                                                        resolution: '4K',
-                                                        variations: 1,
-                                                        loading: false,
-                                                        results: [],
-                                                        error: null
-                                                    }));
-                                                    return [...prev, ...newSlots];
-                                                });
-                                            }}
-                                            className="bg-slate-900 text-white text-sm rounded-lg px-3 py-1.5 border border-slate-600 focus:border-amber-500 focus:outline-none cursor-pointer"
-                                        >
-                                            {[1,2,3,4,5,6,7,8,9,10].map(n => (
-                                                <option key={n} value={n}>{n}</option>
-                                            ))}
-                                        </select>
-                                    </div>
+                                {/* Action Button */}
+                                <div className="flex items-center justify-center mb-6">
                                     <button
                                         onClick={processAllGenSlots}
                                         disabled={getActiveGenCount() === 0 || genSlotsArray.some(s => s.loading)}
@@ -3238,9 +3331,23 @@
                                         <div key={slot.id} className="bg-slate-800 rounded-xl p-6 border border-slate-700 shadow-xl">
                                             <div className="flex items-center justify-between mb-4">
                                                 <h3 className="text-xl font-semibold text-white">Prompt {index + 1}</h3>
-                                                {slot.results?.length > 0 && (
-                                                    <CheckCircle className="w-6 h-6 text-green-400" />
-                                                )}
+                                                <div className="flex items-center gap-2">
+                                                    {slot.results?.length > 0 && (
+                                                        <CheckCircle className="w-6 h-6 text-green-400" />
+                                                    )}
+                                                    {visibleGenSlots > 1 && (
+                                                        <button
+                                                            onClick={() => {
+                                                                setGenSlotsArray(prev => prev.filter((_, i) => i !== index));
+                                                                setVisibleGenSlots(prev => prev - 1);
+                                                            }}
+                                                            className="text-slate-500 hover:text-red-400 p-1 transition-colors"
+                                                            title="Remove prompt"
+                                                        >
+                                                            <X className="w-5 h-5" />
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </div>
 
                                             <div className="grid md:grid-cols-2 gap-6">
@@ -3398,30 +3505,35 @@
                                         </div>
                                     ))}
                                 </div>
+                                
+                                {/* Add Prompt Bar */}
+                                {visibleGenSlots < 20 && (
+                                    <button
+                                        onClick={() => {
+                                            const newCount = visibleGenSlots + 1;
+                                            setVisibleGenSlots(newCount);
+                                            setGenSlotsArray(prev => {
+                                                if (prev.length >= newCount) return prev;
+                                                return [...prev, {
+                                                    id: generateUniqueId(),
+                                                    prompt: '',
+                                                    aspectRatio: 'auto',
+                                                    resolution: '4K',
+                                                    variations: 1,
+                                                    loading: false,
+                                                    results: [],
+                                                    error: null
+                                                }];
+                                            });
+                                        }}
+                                        className="w-full mt-4 py-2 border-2 border-dashed border-slate-600 hover:border-amber-500 rounded-lg text-slate-400 hover:text-amber-500 transition-all flex items-center justify-center gap-2"
+                                    >
+                                        <Plus className="w-4 h-4" />
+                                        <span className="text-sm">Add Prompt</span>
+                                    </button>
+                                )}
                             </div>
                         </div>
-
-                        {/* Universal Slot Selector - Shows only for edit mode */}
-                        {mode === 'edit' && (
-                            <div className="mt-8 flex justify-center">
-                                <div className="inline-flex items-center gap-3 bg-slate-800 border border-slate-700 rounded-lg px-6 py-3">
-                                    <label className="text-slate-300 text-sm font-medium">
-                                        Number of Image Slots:
-                                    </label>
-                                    <select
-                                        value={visibleSlots}
-                                        onChange={(e) => setVisibleSlots(Number(e.target.value))}
-                                        className="bg-slate-900 text-white text-sm rounded-lg px-3 py-2 border border-slate-600 focus:border-amber-500 focus:outline-none cursor-pointer"
-                                    >
-                                        {[1,2,3,4,5,6,7,8,9,10].map(n => (
-                                            <option key={n} value={n}>
-                                                {n} {n === 1 ? 'Slot' : 'Slots'}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-                        )}
                         
                         {/* History Section */}
                         <div className="mt-8">
