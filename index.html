@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nana Banana Unleashed - Edit & Generate</title>
+    <title>Nana Banana Pro Unleashed - Analyze, Edit & Generate</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍌</text></svg>">
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -31,6 +31,11 @@
             background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
             box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
         }
+        
+        .mode-tab.active.analyze-tab {
+            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+            box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+        }
     </style>
 </head>
 <body>
@@ -43,9 +48,10 @@
         // INDEXEDDB SETUP (Replaces localStorage for images)
         // ========================================
         const DB_NAME = 'GeminiImageToolsDB';
-        const DB_VERSION = 1;
+        const DB_VERSION = 2;
         const HISTORY_STORE = 'history';
         const COLLECTION_STORE = 'collection';
+        const ANALYSIS_STORE = 'analysis';
 
         // Initialize IndexedDB
         let db = null;
@@ -80,6 +86,13 @@
                         const collectionStore = db.createObjectStore(COLLECTION_STORE, { keyPath: 'id' });
                         collectionStore.createIndex('timestamp', 'timestamp', { unique: false });
                         console.log('✅ Created collection store');
+                    }
+                    
+                    // Create analysis store if it doesn't exist
+                    if (!db.objectStoreNames.contains(ANALYSIS_STORE)) {
+                        const analysisStore = db.createObjectStore(ANALYSIS_STORE, { keyPath: 'id' });
+                        analysisStore.createIndex('timestamp', 'timestamp', { unique: false });
+                        console.log('✅ Created analysis store');
                     }
                 };
             });
@@ -272,6 +285,25 @@
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
         );
+        
+        const Volume2 = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072M18.364 5.636a9 9 0 010 12.728M11 5L6 9H2v6h4l5 4V5z" />
+            </svg>
+        );
+        
+        const Volume1 = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072M11 5L6 9H2v6h4l5 4V5z" />
+            </svg>
+        );
+        
+        const VolumeX = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+            </svg>
+        );
 
         const Key = ({ className }) => (
             <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -297,24 +329,43 @@
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
         );
+        
+        const Search = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+        );
+        
+        const ArrowRight = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+            </svg>
+        );
 
         // ========================================
         // API KEY SETTINGS MODAL
         // ========================================
-        function ApiKeySettings({ isOpen, onClose, apiKey, onSave, selectedModel, onModelChange, availableModels }) {
+        function ApiKeySettings({ isOpen, onClose, apiKey, onSave, selectedModel, onModelChange, availableModels, openaiKey, onSaveOpenai, openaiModel, onOpenaiModelChange, openaiModels }) {
             const [inputKey, setInputKey] = useState(apiKey || '');
-            const [inputModel, setInputModel] = useState(selectedModel || 'gemini-3-pro-image-preview');
+            const [inputOpenaiKey, setInputOpenaiKey] = useState(openaiKey || '');
+            const [inputModel, setInputModel] = useState(selectedModel || 'gemini-2.0-flash-exp-image-generation');
+            const [inputOpenaiModel, setInputOpenaiModel] = useState(openaiModel || 'gpt-5.2');
             const [showKey, setShowKey] = useState(false);
+            const [showOpenaiKey, setShowOpenaiKey] = useState(false);
             const [saved, setSaved] = useState(false);
 
             useEffect(() => {
                 setInputKey(apiKey || '');
-                setInputModel(selectedModel || 'gemini-3-pro-image-preview');
-            }, [apiKey, selectedModel]);
+                setInputOpenaiKey(openaiKey || '');
+                setInputModel(selectedModel || 'gemini-2.0-flash-exp-image-generation');
+                setInputOpenaiModel(openaiModel || 'gpt-5.2');
+            }, [apiKey, openaiKey, selectedModel, openaiModel]);
 
             const handleSave = () => {
                 onSave(inputKey);
                 onModelChange(inputModel);
+                if (onSaveOpenai) onSaveOpenai(inputOpenaiKey);
+                if (onOpenaiModelChange) onOpenaiModelChange(inputOpenaiModel);
                 setSaved(true);
                 setTimeout(() => setSaved(false), 2000);
             };
@@ -346,60 +397,94 @@
                                 <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
                                 <div className="text-sm text-amber-200 space-y-1">
                                     <p className="font-semibold">⚠️ Security Notice</p>
-                                    <p className="text-xs">Your API key is stored locally in your browser. Only use this on trusted devices.</p>
+                                    <p className="text-xs">Your API keys are stored locally in your browser. Only use this on trusted devices.</p>
                                 </div>
                             </div>
 
-                            <div className="space-y-2">
-                                <label className="text-white font-medium text-sm flex items-center gap-2">
-                                    <Key className="w-4 h-4 text-amber-500" />
-                                    Google Gemini API Key
-                                </label>
-                                <div className="relative">
-                                    <input
-                                        type={showKey ? "text" : "password"}
-                                        value={inputKey}
-                                        onChange={(e) => setInputKey(e.target.value)}
-                                        placeholder="AIza..."
-                                        className="w-full bg-slate-900 text-white rounded-lg p-3 pr-11 border border-slate-600 focus:border-amber-500 focus:outline-none font-mono text-sm"
-                                    />
-                                    <button
-                                        onClick={() => setShowKey(!showKey)}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                            {/* Gemini Section */}
+                            <div className="bg-slate-900/50 rounded-lg p-4 border border-slate-700">
+                                <h3 className="text-amber-400 font-semibold mb-3 flex items-center gap-2">
+                                    <Sparkles className="w-4 h-4" /> Google Gemini (Edit & Generate)
+                                </h3>
+                                <div className="space-y-3">
+                                    <div className="relative">
+                                        <input
+                                            type={showKey ? "text" : "password"}
+                                            value={inputKey}
+                                            onChange={(e) => setInputKey(e.target.value)}
+                                            placeholder="AIza..."
+                                            className="w-full bg-slate-900 text-white rounded-lg p-3 pr-11 border border-slate-600 focus:border-amber-500 focus:outline-none font-mono text-sm"
+                                        />
+                                        <button
+                                            onClick={() => setShowKey(!showKey)}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                                        >
+                                            {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                        </button>
+                                    </div>
+                                    <select
+                                        value={inputModel}
+                                        onChange={(e) => setInputModel(e.target.value)}
+                                        className="w-full bg-slate-900 text-white rounded-lg p-3 border border-slate-600 focus:border-amber-500 focus:outline-none cursor-pointer text-sm"
                                     >
-                                        {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                    </button>
+                                        {availableModels.map(model => (
+                                            <option key={model.id} value={model.id}>{model.name}</option>
+                                        ))}
+                                    </select>
+                                    <p className="text-slate-400 text-xs">
+                                        Get your key from{' '}
+                                        <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-amber-500 hover:underline">
+                                            Google AI Studio
+                                        </a>
+                                    </p>
                                 </div>
-                                <p className="text-slate-400 text-xs">
-                                    Get your key from{' '}
-                                    <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-amber-500 hover:underline">
-                                        Google AI Studio
-                                    </a>
-                                </p>
                             </div>
 
-                            <div className="space-y-2">
-                                <label className="text-white font-medium text-sm flex items-center gap-2">
-                                    <Sparkles className="w-4 h-4 text-amber-500" />
-                                    AI Model
-                                </label>
-                                <select
-                                    value={inputModel}
-                                    onChange={(e) => setInputModel(e.target.value)}
-                                    className="w-full bg-slate-900 text-white rounded-lg p-3 border border-slate-600 focus:border-amber-500 focus:outline-none cursor-pointer text-sm"
-                                >
-                                    {availableModels.map(model => (
-                                        <option key={model.id} value={model.id}>{model.name}</option>
-                                    ))}
-                                </select>
+                            {/* OpenAI Section */}
+                            <div className="bg-slate-900/50 rounded-lg p-4 border border-purple-500/30">
+                                <h3 className="text-purple-400 font-semibold mb-3 flex items-center gap-2">
+                                    <Search className="w-4 h-4" /> OpenAI Vision (Analyze)
+                                </h3>
+                                <div className="space-y-3">
+                                    <div className="relative">
+                                        <input
+                                            type={showOpenaiKey ? "text" : "password"}
+                                            value={inputOpenaiKey}
+                                            onChange={(e) => setInputOpenaiKey(e.target.value)}
+                                            placeholder="sk-..."
+                                            className="w-full bg-slate-900 text-white rounded-lg p-3 pr-11 border border-slate-600 focus:border-purple-500 focus:outline-none font-mono text-sm"
+                                        />
+                                        <button
+                                            onClick={() => setShowOpenaiKey(!showOpenaiKey)}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                                        >
+                                            {showOpenaiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                        </button>
+                                    </div>
+                                    {openaiModels && (
+                                        <select
+                                            value={inputOpenaiModel}
+                                            onChange={(e) => setInputOpenaiModel(e.target.value)}
+                                            className="w-full bg-slate-900 text-white rounded-lg p-3 border border-slate-600 focus:border-purple-500 focus:outline-none cursor-pointer text-sm"
+                                        >
+                                            {openaiModels.map(model => (
+                                                <option key={model.id} value={model.id}>{model.name}</option>
+                                            ))}
+                                        </select>
+                                    )}
+                                    <p className="text-slate-400 text-xs">
+                                        Get your key from{' '}
+                                        <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:underline">
+                                            OpenAI Platform
+                                        </a>
+                                    </p>
+                                </div>
                             </div>
 
                             {saved && (
                                 <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3 flex items-center gap-2">
                                     <CheckCircle className="w-4 h-4 text-green-500" />
-                                    <span className="text-green-400 font-semibold text-sm">
-                                        {inputKey ? 'Saved successfully!' : 'API key cleared!'}
-                                    </span>
+                                    <span className="text-green-400 font-semibold text-sm">Saved successfully!</span>
                                 </div>
                             )}
 
@@ -408,14 +493,14 @@
                                     onClick={handleSave}
                                     className="flex-1 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold py-2.5 px-4 rounded-lg transition-all shadow-lg text-sm"
                                 >
-                                    Save Settings
+                                    Save All Settings
                                 </button>
                                 {apiKey && (
                                     <button
                                         onClick={handleClear}
                                         className="bg-red-500 hover:bg-red-600 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors text-sm"
                                     >
-                                        Clear
+                                        Clear Gemini
                                     </button>
                                 )}
                             </div>
@@ -428,29 +513,128 @@
         function GeminiImageTools() {
             // Available models for selection
             const availableModels = [
-                { id: 'gemini-3-pro-image-preview', name: 'Gemini 3 Pro Image Preview (Recommended)' },
+                { id: 'gemini-2.0-flash-exp-image-generation', name: 'Gemini 2.0 Flash Image Gen (Recommended)' },
                 { id: 'gemini-3-pro-image', name: 'Gemini 3 Pro Image' },
-                { id: 'imagen-3.0-generate-001', name: 'Imagen 3.0 Generate' },
-                { id: 'imagen-3.0-fast-generate-001', name: 'Imagen 3.0 Fast' },
+                { id: 'gemini-3-pro-image-preview', name: 'Gemini 3 Pro Image Preview' },
+                { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro (Text/Edit only)' },
+                { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash (Text/Edit only)' },
+            ];
+            
+            const openaiModels = [
+                { id: 'gpt-5.2', name: 'GPT-5.2 (Latest)' },
+                { id: 'gpt-5.1', name: 'GPT-5.1' },
+                { id: 'gpt-5', name: 'GPT-5' },
+                { id: 'gpt-4o', name: 'GPT-4o' },
+                { id: 'gpt-4o-mini', name: 'GPT-4o Mini (Fast)' },
+                { id: 'gpt-4-turbo', name: 'GPT-4 Turbo' },
             ];
 
             // API Key state (loaded from localStorage)
             const [apiKey, setApiKey] = useState('');
-            const [selectedModel, setSelectedModel] = useState('gemini-3-pro-image-preview');
+            const [openaiKey, setOpenaiKey] = useState('');
+            const [selectedModel, setSelectedModel] = useState('gemini-2.0-flash-exp-image-generation');
+            const [openaiModel, setOpenaiModel] = useState('gpt-5.2');
             const [settingsOpen, setSettingsOpen] = useState(false);
+            const [soundVolume, setSoundVolume] = useState(() => {
+                const saved = localStorage.getItem('sound_volume');
+                return saved || 'normal'; // 'off', 'low', 'normal'
+            });
+            
+            // Play a pleasant chime sound using Web Audio API
+            const playChime = () => {
+                if (soundVolume === 'off') return;
+                
+                const volumeLevel = soundVolume === 'low' ? 0.1 : 0.3;
+                
+                try {
+                    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    
+                    // Create a pleasant two-tone chime
+                    const playTone = (frequency, startTime, duration) => {
+                        const oscillator = audioContext.createOscillator();
+                        const gainNode = audioContext.createGain();
+                        
+                        oscillator.connect(gainNode);
+                        gainNode.connect(audioContext.destination);
+                        
+                        oscillator.frequency.value = frequency;
+                        oscillator.type = 'sine';
+                        
+                        // Envelope for pleasant sound
+                        gainNode.gain.setValueAtTime(0, startTime);
+                        gainNode.gain.linearRampToValueAtTime(volumeLevel, startTime + 0.05);
+                        gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+                        
+                        oscillator.start(startTime);
+                        oscillator.stop(startTime + duration);
+                    };
+                    
+                    const now = audioContext.currentTime;
+                    playTone(880, now, 0.15);        // A5
+                    playTone(1108.73, now + 0.1, 0.2); // C#6
+                    playTone(1318.51, now + 0.2, 0.3); // E6
+                    
+                    // Clean up after sounds finish
+                    setTimeout(() => audioContext.close(), 1000);
+                } catch (e) {
+                    console.log('Audio not supported:', e);
+                }
+            };
+            
+            const cycleVolume = () => {
+                const levels = ['off', 'low', 'normal'];
+                const currentIndex = levels.indexOf(soundVolume);
+                const nextIndex = (currentIndex + 1) % levels.length;
+                const newValue = levels[nextIndex];
+                setSoundVolume(newValue);
+                localStorage.setItem('sound_volume', newValue);
+                if (newValue !== 'off') {
+                    // Small delay to let state update, then play test chime
+                    setTimeout(() => {
+                        const volumeLevel = newValue === 'low' ? 0.1 : 0.3;
+                        try {
+                            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                            const playTone = (frequency, startTime, duration) => {
+                                const oscillator = audioContext.createOscillator();
+                                const gainNode = audioContext.createGain();
+                                oscillator.connect(gainNode);
+                                gainNode.connect(audioContext.destination);
+                                oscillator.frequency.value = frequency;
+                                oscillator.type = 'sine';
+                                gainNode.gain.setValueAtTime(0, startTime);
+                                gainNode.gain.linearRampToValueAtTime(volumeLevel, startTime + 0.05);
+                                gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+                                oscillator.start(startTime);
+                                oscillator.stop(startTime + duration);
+                            };
+                            const now = audioContext.currentTime;
+                            playTone(880, now, 0.15);
+                            playTone(1108.73, now + 0.1, 0.2);
+                            playTone(1318.51, now + 0.2, 0.3);
+                            setTimeout(() => audioContext.close(), 1000);
+                        } catch (e) {}
+                    }, 50);
+                }
+            };
 
-            // Load API key and model from localStorage on mount
+            // Load API keys and models from localStorage on mount
             useEffect(() => {
                 const savedKey = localStorage.getItem('gemini_api_key');
                 if (savedKey) setApiKey(savedKey);
+                
+                const savedOpenaiKey = localStorage.getItem('openai_api_key');
+                if (savedOpenaiKey) setOpenaiKey(savedOpenaiKey);
                 
                 const savedModel = localStorage.getItem('gemini_model');
                 if (savedModel && availableModels.find(m => m.id === savedModel)) {
                     setSelectedModel(savedModel);
                 } else {
-                    setSelectedModel('gemini-3-pro-image-preview');
-                    localStorage.setItem('gemini_model', 'gemini-3-pro-image-preview');
+                    setSelectedModel('gemini-2.0-flash-exp-image-generation');
+                    localStorage.setItem('gemini_model', 'gemini-2.0-flash-exp-image-generation');
                 }
+                
+                const savedOpenaiModel = localStorage.getItem('openai_model');
+                if (savedOpenaiModel) setOpenaiModel(savedOpenaiModel);
             }, []);
 
             const handleSaveApiKey = (key) => {
@@ -462,6 +646,21 @@
                     setApiKey('');
                 }
             };
+            
+            const handleSaveOpenaiKey = (key) => {
+                if (key) {
+                    localStorage.setItem('openai_api_key', key);
+                    setOpenaiKey(key);
+                } else {
+                    localStorage.removeItem('openai_api_key');
+                    setOpenaiKey('');
+                }
+            };
+            
+            const handleSaveOpenaiModel = (model) => {
+                localStorage.setItem('openai_model', model);
+                setOpenaiModel(model);
+            };
 
             const handleSaveModel = (model) => {
                 localStorage.setItem('gemini_model', model);
@@ -469,7 +668,18 @@
             };
 
             // Mode state
-            const [mode, setMode] = useState('edit'); // 'edit', 'generate', 'multi', or 'combine'
+            const [mode, setMode] = useState('edit'); // 'analyze', 'edit', 'generate', 'multi', or 'combine'
+            
+            // ANALYZE MODE state
+            const [analyzeImages, setAnalyzeImages] = useState([]);
+            const [analyzePrompt, setAnalyzePrompt] = useState('Describe this image in detail. What do you see? Include colors, objects, composition, mood, and any text visible.');
+            const [analyzeLoading, setAnalyzeLoading] = useState(false);
+            const [analyzeResults, setAnalyzeResults] = useState([]);
+            const [analyzeError, setAnalyzeError] = useState(null);
+            const [analyzeDragActive, setAnalyzeDragActive] = useState(false);
+            const analyzeFileInputRef = useRef(null);
+            const [analysisHistory, setAnalysisHistory] = useState([]);
+            const [analysisHistoryOpen, setAnalysisHistoryOpen] = useState(false);
 
             // EDIT MODE: Initialize image slots
             const [images, setImages] = useState(Array(20).fill(null).map((_, idx) => ({
@@ -483,7 +693,8 @@
                 loading: false,
                 result: null,
                 results: [], // Array to store multiple variation results
-                error: null
+                error: null,
+                fromAnalysis: false // Track if image came from analysis
             })));
 
             const [visibleSlots, setVisibleSlots] = useState(1); // How many slots to show
@@ -547,6 +758,11 @@
                         const collectionData = await dbHelpers.getAll(COLLECTION_STORE);
                         console.log('✅ Loaded collection from IndexedDB:', collectionData.length, 'images');
                         setUploadedCollection(collectionData);
+                        
+                        // Load analysis history from IndexedDB
+                        const analysisData = await dbHelpers.getAll(ANALYSIS_STORE);
+                        console.log('✅ Loaded analysis history from IndexedDB:', analysisData.length, 'entries');
+                        setAnalysisHistory(analysisData.slice(0, 50)); // Keep max 50
                         
                     } catch (error) {
                         console.error('❌ Failed to initialize IndexedDB:', error);
@@ -956,10 +1172,12 @@
                         return newHistory;
                     });
                     console.log('💾 Saved history entry to IndexedDB');
+                    playChime(); // Play completion sound
                 } catch (error) {
                     console.error('❌ Failed to save history:', error);
                     // Still add to state even if DB save fails
                     setHistory(prev => [entry, ...prev].slice(0, 100));
+                    playChime(); // Still play sound on completion
                 }
             };
             
@@ -985,6 +1203,241 @@
                     console.error('❌ Failed to remove history:', error);
                     // Still remove from state even if DB delete fails
                     setHistory(prev => prev.filter(entry => entry.id !== id));
+                }
+            };
+            
+            // === ANALYZE MODE FUNCTIONS ===
+            const handleAnalyzeDrag = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (e.type === "dragenter" || e.type === "dragover") {
+                    setAnalyzeDragActive(true);
+                } else if (e.type === "dragleave") {
+                    setAnalyzeDragActive(false);
+                }
+            };
+
+            const handleAnalyzeDrop = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setAnalyzeDragActive(false);
+                
+                const files = Array.from(e.dataTransfer.files).filter(file => 
+                    file.type.startsWith('image/')
+                );
+                if (files.length === 0) return;
+
+                const remainingSlots = 10 - analyzeImages.length;
+                const filesToProcess = files.slice(0, remainingSlots);
+
+                filesToProcess.forEach(file => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        addToCollection(reader.result, file.name);
+                        setAnalyzeImages(prev => [...prev, {
+                            id: generateUniqueId(),
+                            base64: reader.result.split(',')[1],
+                            preview: reader.result,
+                            fileName: file.name
+                        }]);
+                    };
+                    reader.readAsDataURL(file);
+                });
+            };
+
+            const handleAnalyzeFileSelect = (e) => {
+                const files = Array.from(e.target.files || []).filter(file => 
+                    file.type.startsWith('image/')
+                );
+                if (files.length === 0) return;
+
+                const remainingSlots = 10 - analyzeImages.length;
+                const filesToProcess = files.slice(0, remainingSlots);
+
+                filesToProcess.forEach(file => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        addToCollection(reader.result, file.name);
+                        setAnalyzeImages(prev => [...prev, {
+                            id: generateUniqueId(),
+                            base64: reader.result.split(',')[1],
+                            preview: reader.result,
+                            fileName: file.name
+                        }]);
+                    };
+                    reader.readAsDataURL(file);
+                });
+                e.target.value = '';
+            };
+
+            const removeAnalyzeImage = (id) => {
+                setAnalyzeImages(prev => prev.filter(img => img.id !== id));
+            };
+
+            const clearAnalyzeImages = () => {
+                setAnalyzeImages([]);
+                setAnalyzeResults([]);
+                setAnalyzeError(null);
+            };
+
+            const processAnalysis = async () => {
+                if (!openaiKey) {
+                    setSettingsOpen(true);
+                    return;
+                }
+                
+                if (analyzeImages.length === 0) {
+                    setAnalyzeError('Please upload at least one image');
+                    return;
+                }
+
+                if (!analyzePrompt.trim()) {
+                    setAnalyzeError('Please enter a prompt');
+                    return;
+                }
+
+                setAnalyzeLoading(true);
+                setAnalyzeError(null);
+                setAnalyzeResults([]);
+
+                try {
+                    const results = [];
+                    
+                    for (const img of analyzeImages) {
+                        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${openaiKey}`
+                            },
+                            body: JSON.stringify({
+                                model: openaiModel,
+                                messages: [{
+                                    role: 'user',
+                                    content: [
+                                        { type: 'text', text: analyzePrompt },
+                                        {
+                                            type: 'image_url',
+                                            image_url: {
+                                                url: `data:image/jpeg;base64,${img.base64}`,
+                                                detail: 'high'
+                                            }
+                                        }
+                                    ]
+                                }],
+                                max_completion_tokens: 1000
+                            })
+                        });
+
+                        if (!response.ok) {
+                            const errorData = await response.json();
+                            throw new Error(errorData.error?.message || 'Failed to analyze image');
+                        }
+
+                        const data = await response.json();
+                        const analysis = data.choices?.[0]?.message?.content || 'No analysis available';
+                        
+                        results.push({
+                            id: img.id,
+                            preview: img.preview,
+                            fileName: img.fileName,
+                            analysis
+                        });
+                    }
+
+                    setAnalyzeResults(results);
+
+                    // Save to analysis history
+                    const entry = {
+                        id: generateUniqueId(),
+                        timestamp: new Date().toISOString(),
+                        prompt: analyzePrompt,
+                        images: analyzeImages.map(img => ({ preview: img.preview, fileName: img.fileName })),
+                        results
+                    };
+                    addToAnalysisHistory(entry);
+
+                } catch (err) {
+                    setAnalyzeError(err.message || 'Failed to analyze images');
+                } finally {
+                    setAnalyzeLoading(false);
+                }
+            };
+
+            const addToAnalysisHistory = async (entry) => {
+                try {
+                    await dbHelpers.put(ANALYSIS_STORE, entry);
+                    setAnalysisHistory(prev => [entry, ...prev].slice(0, 50));
+                    console.log('💾 Saved analysis to IndexedDB');
+                    playChime(); // Play completion sound
+                } catch (error) {
+                    console.error('❌ Failed to save analysis:', error);
+                    setAnalysisHistory(prev => [entry, ...prev].slice(0, 50));
+                    playChime(); // Still play sound on completion
+                }
+            };
+
+            const removeFromAnalysisHistory = async (id) => {
+                try {
+                    await dbHelpers.delete(ANALYSIS_STORE, id);
+                    setAnalysisHistory(prev => prev.filter(entry => entry.id !== id));
+                } catch (error) {
+                    console.error('❌ Failed to remove analysis:', error);
+                    setAnalysisHistory(prev => prev.filter(entry => entry.id !== id));
+                }
+            };
+
+            const clearAnalysisHistory = async () => {
+                if (confirm('Are you sure you want to clear all analysis history?')) {
+                    try {
+                        await dbHelpers.clear(ANALYSIS_STORE);
+                        setAnalysisHistory([]);
+                    } catch (error) {
+                        console.error('❌ Failed to clear analysis history:', error);
+                    }
+                }
+            };
+
+            const transferToEditor = (result) => {
+                // Find empty slot or expand
+                let targetIndex = images.slice(0, visibleSlots).findIndex(img => !img.image);
+                
+                if (targetIndex === -1) {
+                    if (visibleSlots < 20) {
+                        targetIndex = visibleSlots;
+                        setVisibleSlots(prev => prev + 1);
+                    } else {
+                        return;
+                    }
+                }
+
+                setTimeout(() => {
+                    updateImage(targetIndex, {
+                        image: result.preview.split(',')[1],
+                        imagePreview: result.preview,
+                        prompt: result.analysis.substring(0, 500),
+                        error: null,
+                        results: [],
+                        fromAnalysis: true
+                    });
+                    setMode('edit');
+                }, 50);
+            };
+
+            const transferAllToEditor = () => {
+                analyzeResults.forEach((result, idx) => {
+                    setTimeout(() => transferToEditor(result), idx * 100);
+                });
+            };
+            
+            const useFromCollectionForAnalyze = (img) => {
+                if (analyzeImages.length < 10) {
+                    setAnalyzeImages(prev => [...prev, {
+                        id: generateUniqueId(),
+                        base64: img.preview.split(',')[1],
+                        preview: img.preview,
+                        fileName: img.fileName
+                    }]);
                 }
             };
             
@@ -1374,39 +1827,72 @@
                 updateGenSlot(index, { loading: true, error: null, results: [] });
 
                 try {
-                    const imageConfig = { imageSize: slot.resolution };
-                    if (slot.aspectRatio !== 'auto') {
-                        imageConfig.aspectRatio = slot.aspectRatio;
-                    }
-
                     const promises = Array.from({ length: slot.variations }).map(async () => {
-                        const response = await fetch(
-                            `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`,
-                            {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    contents: [{ parts: [{ text: slot.prompt }] }],
-                                    generationConfig: {
-                                        responseModalities: ['IMAGE'],
-                                        imageConfig: imageConfig
-                                    }
-                                })
-                            }
-                        );
+                        let requestBody;
+                        let apiUrl;
+                        
+                        // Check if using Imagen models (different API)
+                        if (selectedModel.startsWith('imagen')) {
+                            apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:predict?key=${apiKey}`;
+                            requestBody = {
+                                instances: [{ prompt: slot.prompt }],
+                                parameters: {
+                                    sampleCount: 1,
+                                    aspectRatio: slot.aspectRatio !== 'auto' ? slot.aspectRatio : '1:1'
+                                }
+                            };
+                        } else {
+                            // Gemini models use generateContent
+                            apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`;
+                            requestBody = {
+                                contents: [{ parts: [{ text: `Generate an image: ${slot.prompt}` }] }],
+                                generationConfig: {
+                                    responseModalities: ['IMAGE', 'TEXT']
+                                }
+                            };
+                        }
+                        
+                        const response = await fetch(apiUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(requestBody)
+                        });
 
                         if (!response.ok) {
                             const errorData = await response.json();
+                            console.error('API Error:', errorData);
                             throw new Error(errorData.error?.message || 'Failed to generate image');
                         }
 
                         const data = await response.json();
+                        console.log('Generate API response:', JSON.stringify(data, null, 2));
                         
-                        if (data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data) {
-                            return `data:image/jpeg;base64,${data.candidates[0].content.parts[0].inlineData.data}`;
-                        } else {
-                            throw new Error('Invalid response format from API');
+                        // Handle Imagen response format
+                        if (selectedModel.startsWith('imagen')) {
+                            if (data.predictions?.[0]?.bytesBase64Encoded) {
+                                return `data:image/png;base64,${data.predictions[0].bytesBase64Encoded}`;
+                            }
                         }
+                        
+                        // Handle Gemini response format
+                        const parts = data.candidates?.[0]?.content?.parts || [];
+                        
+                        // Look for image data in parts
+                        for (const part of parts) {
+                            if (part.inlineData?.data) {
+                                const mimeType = part.inlineData.mimeType || 'image/png';
+                                return `data:${mimeType};base64,${part.inlineData.data}`;
+                            }
+                        }
+                        
+                        // Check for text response (might indicate why image wasn't generated)
+                        const textPart = parts.find(p => p.text);
+                        if (textPart) {
+                            console.log('API returned text instead of image:', textPart.text);
+                            throw new Error(`Model response: ${textPart.text.substring(0, 150)}`);
+                        }
+                        
+                        throw new Error('No image data in API response. This model may not support image generation. Try gemini-2.0-flash-exp-image-generation.');
                     });
 
                     const results = await Promise.all(promises);
@@ -1425,6 +1911,7 @@
                     
                     updateGenSlot(index, { results, loading: false });
                 } catch (err) {
+                    console.error('Generation error:', err);
                     updateGenSlot(index, { error: err.message || 'Failed to generate', loading: false });
                 }
             };
@@ -2203,18 +2690,37 @@
                         <div className="text-center mb-8">
                             <div className="flex items-center justify-center gap-3 mb-4 relative">
                                 <span className="text-5xl">🍌</span>
-                                <h1 className="text-4xl font-bold text-white">Nana Banana Unleashed</h1>
-                                <button
-                                    onClick={() => setSettingsOpen(true)}
-                                    className={`absolute right-0 p-3 rounded-lg transition-all ${
-                                        apiKey 
-                                            ? 'bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white' 
-                                            : 'bg-amber-500 hover:bg-amber-600 text-white animate-pulse'
-                                    }`}
-                                    title={apiKey ? 'API Settings' : 'Configure your API key'}
-                                >
-                                    <Settings className="w-5 h-5" />
-                                </button>
+                                <h1 className="text-4xl font-bold text-white">Nana Banana Pro Unleashed</h1>
+                                <div className="absolute right-0 flex gap-2">
+                                    <button
+                                        onClick={cycleVolume}
+                                        className={`p-3 rounded-lg transition-all ${
+                                            soundVolume === 'normal' ? 'bg-green-600 hover:bg-green-500 text-white' :
+                                            soundVolume === 'low' ? 'bg-amber-600 hover:bg-amber-500 text-white' :
+                                            'bg-slate-700 hover:bg-slate-600 text-slate-400'
+                                        }`}
+                                        title={
+                                            soundVolume === 'normal' ? 'Volume: Normal (click for Off)' :
+                                            soundVolume === 'low' ? 'Volume: Low (click for Normal)' :
+                                            'Volume: Off (click for Low)'
+                                        }
+                                    >
+                                        {soundVolume === 'normal' ? <Volume2 className="w-5 h-5" /> :
+                                         soundVolume === 'low' ? <Volume1 className="w-5 h-5" /> :
+                                         <VolumeX className="w-5 h-5" />}
+                                    </button>
+                                    <button
+                                        onClick={() => setSettingsOpen(true)}
+                                        className={`p-3 rounded-lg transition-all ${
+                                            apiKey 
+                                                ? 'bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white' 
+                                                : 'bg-amber-500 hover:bg-amber-600 text-white animate-pulse'
+                                        }`}
+                                        title={apiKey ? 'API Settings' : 'Configure your API key'}
+                                    >
+                                        <Settings className="w-5 h-5" />
+                                    </button>
+                                </div>
                             </div>
                             <p className="text-slate-500 text-xs mb-2">
                                 Created by: <a href="https://www.youtube.com/watch?v=dQw4w9WgXcQ" target="_blank" rel="noopener noreferrer" className="text-amber-500 hover:text-amber-400 hover:underline">MW</a>
@@ -2235,6 +2741,15 @@
 
                             {/* Mode Tabs */}
                             <div className="flex gap-3 justify-center mb-6 flex-wrap">
+                                <button
+                                    onClick={() => handleModeChange('analyze')}
+                                    className={`mode-tab px-6 py-3 rounded-lg font-semibold text-white flex items-center gap-2 ${
+                                        mode === 'analyze' ? 'active analyze-tab' : 'bg-slate-700 hover:bg-slate-600'
+                                    }`}
+                                >
+                                    <Search className="w-5 h-5" />
+                                    Analyze
+                                </button>
                                 <button
                                     onClick={() => handleModeChange('edit')}
                                     className={`mode-tab px-6 py-3 rounded-lg font-semibold text-white flex items-center gap-2 ${
@@ -2271,6 +2786,292 @@
                                     <Sparkles className="w-5 h-5" />
                                     Image Generator
                                 </button>
+                            </div>
+                        </div>
+
+                        {/* ANALYZE MODE */}
+                        <div className={mode === 'analyze' ? '' : 'hidden'}>
+                            <div className="max-w-4xl mx-auto">
+                                <p className="text-slate-400 text-lg mb-6 text-center">
+                                    Analyze images with AI vision, then transfer descriptions to the editor
+                                </p>
+
+                                {/* Image Collection Dropdown */}
+                                <div className="mb-6">
+                                    <button
+                                        onClick={() => setCollectionOpen(!collectionOpen)}
+                                        className="w-full bg-slate-800 hover:bg-slate-750 border border-slate-700 rounded-lg px-4 py-3 flex items-center justify-between transition-all"
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <Folder className="w-5 h-5 text-purple-500" />
+                                            <span className="text-white font-medium">Image Collection</span>
+                                            <span className="text-slate-400 text-sm">
+                                                {uploadedCollection.length} image{uploadedCollection.length !== 1 ? 's' : ''}
+                                            </span>
+                                        </div>
+                                        <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform ${collectionOpen ? 'rotate-180' : ''}`} />
+                                    </button>
+                                    {collectionOpen && (
+                                        <div className="mt-2 bg-slate-800/50 border border-slate-700 rounded-lg p-4">
+                                            <div className="flex items-center justify-between mb-3">
+                                                <p className="text-slate-400 text-sm">Click + to add images to analysis queue</p>
+                                                {uploadedCollection.length > 0 && (
+                                                    <button
+                                                        onClick={clearCollection}
+                                                        className="text-red-400 hover:text-red-300 text-xs flex items-center gap-1"
+                                                    >
+                                                        <Trash className="w-3 h-3" /> Clear All
+                                                    </button>
+                                                )}
+                                            </div>
+                                            {uploadedCollection.length > 0 ? (
+                                                <div className="grid grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2">
+                                                    {uploadedCollection.map((img) => (
+                                                        <div key={img.id} className="relative group cursor-pointer" onClick={() => openImageModal(img.preview, img.fileName)}>
+                                                            <img src={img.preview} alt={img.fileName} className="w-full aspect-square object-cover rounded border border-slate-600 hover:border-purple-500 transition-colors" />
+                                                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded flex items-center justify-center gap-1">
+                                                                <button
+                                                                    onClick={(e) => { e.stopPropagation(); useFromCollectionForAnalyze(img); }}
+                                                                    className="bg-purple-500 hover:bg-purple-600 text-white p-1 rounded"
+                                                                    title="Add to analysis"
+                                                                >
+                                                                    <Plus className="w-2.5 h-2.5" />
+                                                                </button>
+                                                                <button
+                                                                    onClick={(e) => { e.stopPropagation(); removeFromCollection(img.id); }}
+                                                                    className="bg-red-500 hover:bg-red-600 text-white p-1 rounded"
+                                                                    title="Remove from collection"
+                                                                >
+                                                                    <X className="w-2.5 h-2.5" />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <p className="text-slate-500 text-sm text-center">No images in collection. Upload images to build your collection.</p>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Analyze Card */}
+                                <div className="bg-slate-800 rounded-xl p-6 border border-purple-500/30 shadow-xl">
+                                    <h3 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
+                                        <Search className="w-6 h-6 text-purple-400" />
+                                        Vision Analysis
+                                    </h3>
+
+                                    {/* Upload Area */}
+                                    {analyzeImages.length < 10 && (
+                                        <div
+                                            className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-all mb-6 ${
+                                                analyzeDragActive 
+                                                    ? 'border-purple-500 bg-purple-500/10' 
+                                                    : 'border-slate-600 hover:border-purple-500'
+                                            }`}
+                                            onClick={() => analyzeFileInputRef.current?.click()}
+                                            onDragEnter={handleAnalyzeDrag}
+                                            onDragOver={handleAnalyzeDrag}
+                                            onDragLeave={handleAnalyzeDrag}
+                                            onDrop={handleAnalyzeDrop}
+                                        >
+                                            <Upload className="w-12 h-12 text-purple-400 mx-auto mb-3" />
+                                            <p className="text-slate-300 mb-1">Drop images here or click to upload</p>
+                                            <p className="text-slate-500 text-sm">Up to 10 images • JPG, PNG, WebP</p>
+                                            <input
+                                                ref={analyzeFileInputRef}
+                                                type="file"
+                                                multiple
+                                                className="hidden"
+                                                accept="image/*"
+                                                onChange={handleAnalyzeFileSelect}
+                                            />
+                                        </div>
+                                    )}
+
+                                    {/* Uploaded Images Grid */}
+                                    {analyzeImages.length > 0 && (
+                                        <div className="mb-6">
+                                            <div className="flex items-center justify-between mb-3">
+                                                <span className="text-slate-300 font-medium">{analyzeImages.length} image{analyzeImages.length !== 1 ? 's' : ''} ready</span>
+                                                <button
+                                                    onClick={clearAnalyzeImages}
+                                                    className="text-red-400 hover:text-red-300 text-sm flex items-center gap-1"
+                                                >
+                                                    <X className="w-4 h-4" /> Clear All
+                                                </button>
+                                            </div>
+                                            <div className="grid grid-cols-5 gap-3">
+                                                {analyzeImages.map((img) => (
+                                                    <div key={img.id} className="relative group">
+                                                        <img
+                                                            src={img.preview}
+                                                            alt={img.fileName}
+                                                            className="w-full aspect-square object-cover rounded-lg border-2 border-purple-500/50 cursor-pointer"
+                                                            onClick={() => openImageModal(img.preview, img.fileName)}
+                                                        />
+                                                        <button
+                                                            onClick={() => removeAnalyzeImage(img.id)}
+                                                            className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                        >
+                                                            <X className="w-3 h-3" />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Prompt */}
+                                    <div className="mb-6">
+                                        <label className="block text-sm font-medium text-slate-300 mb-2">Analysis Prompt</label>
+                                        <textarea
+                                            value={analyzePrompt}
+                                            onChange={(e) => setAnalyzePrompt(e.target.value)}
+                                            placeholder="What would you like to know about these images?"
+                                            className="w-full bg-slate-900 text-white rounded-lg p-4 border border-slate-600 focus:border-purple-500 focus:outline-none resize-none h-24"
+                                        />
+                                    </div>
+
+                                    {/* Analyze Button */}
+                                    <button
+                                        onClick={processAnalysis}
+                                        disabled={analyzeLoading || analyzeImages.length === 0 || !analyzePrompt.trim()}
+                                        className="w-full bg-gradient-to-r from-purple-500 to-violet-500 hover:from-purple-600 hover:to-violet-600 disabled:from-slate-700 disabled:to-slate-700 disabled:cursor-not-allowed text-white font-bold py-4 px-6 rounded-lg transition-all flex items-center justify-center gap-3 shadow-lg text-lg"
+                                    >
+                                        {analyzeLoading ? (
+                                            <>
+                                                <Loader2 className="w-6 h-6 animate-spin" />
+                                                Analyzing {analyzeImages.length} image{analyzeImages.length !== 1 ? 's' : ''}...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Search className="w-6 h-6" />
+                                                Analyze {analyzeImages.length > 0 ? analyzeImages.length : ''} Image{analyzeImages.length !== 1 ? 's' : ''}
+                                            </>
+                                        )}
+                                    </button>
+
+                                    {/* Error */}
+                                    {analyzeError && (
+                                        <div className="mt-4 bg-red-500/20 border border-red-500/50 rounded-lg p-4 text-red-300">
+                                            {analyzeError}
+                                        </div>
+                                    )}
+
+                                    {/* Results */}
+                                    {analyzeResults.length > 0 && !analyzeLoading && (
+                                        <div className="mt-8 pt-8 border-t border-slate-700">
+                                            <div className="flex items-center justify-between mb-6">
+                                                <h3 className="text-xl font-semibold text-white flex items-center gap-2">
+                                                    <CheckCircle className="w-6 h-6 text-green-400" />
+                                                    Analysis Complete
+                                                </h3>
+                                                <button
+                                                    onClick={transferAllToEditor}
+                                                    className="bg-amber-500 hover:bg-amber-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors flex items-center gap-2"
+                                                >
+                                                    <ArrowRight className="w-4 h-4" />
+                                                    Transfer All to Editor
+                                                </button>
+                                            </div>
+                                            
+                                            <div className="space-y-6">
+                                                {analyzeResults.map((result, idx) => (
+                                                    <div key={result.id} className="bg-slate-900 rounded-lg p-4 border border-slate-700">
+                                                        <div className="flex gap-4">
+                                                            <img
+                                                                src={result.preview}
+                                                                alt={result.fileName}
+                                                                className="w-32 h-32 object-cover rounded-lg border border-slate-600 flex-shrink-0 cursor-pointer hover:border-purple-500"
+                                                                onClick={() => openImageModal(result.preview, result.fileName)}
+                                                            />
+                                                            <div className="flex-1">
+                                                                <div className="flex items-center justify-between mb-2">
+                                                                    <span className="text-purple-400 font-medium">Image {idx + 1}: {result.fileName}</span>
+                                                                    <button
+                                                                        onClick={() => transferToEditor(result)}
+                                                                        className="bg-amber-500 hover:bg-amber-600 text-white text-sm py-1.5 px-3 rounded-lg transition-colors flex items-center gap-1.5"
+                                                                    >
+                                                                        <ArrowRight className="w-3 h-3" />
+                                                                        To Editor
+                                                                    </button>
+                                                                </div>
+                                                                <p className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap max-h-48 overflow-y-auto">
+                                                                    {result.analysis}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Analysis History */}
+                                <div className="mt-8">
+                                    <button
+                                        onClick={() => setAnalysisHistoryOpen(!analysisHistoryOpen)}
+                                        className="w-full bg-slate-800 hover:bg-slate-750 border border-slate-700 rounded-lg px-4 py-3 flex items-center justify-between transition-all"
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <Clock className="w-5 h-5 text-purple-500" />
+                                            <span className="text-white font-medium">Analysis History</span>
+                                            <span className="text-slate-400 text-sm">
+                                                {analysisHistory.length} entr{analysisHistory.length !== 1 ? 'ies' : 'y'}
+                                            </span>
+                                        </div>
+                                        <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform ${analysisHistoryOpen ? 'rotate-180' : ''}`} />
+                                    </button>
+                                    
+                                    {analysisHistoryOpen && (
+                                        <div className="mt-2 bg-slate-800/50 border border-slate-700 rounded-lg p-4">
+                                            <div className="flex items-center justify-between mb-4">
+                                                <p className="text-slate-400 text-sm">Last {analysisHistory.length} analyses</p>
+                                                {analysisHistory.length > 0 && (
+                                                    <button
+                                                        onClick={clearAnalysisHistory}
+                                                        className="bg-red-500 hover:bg-red-600 text-white font-semibold py-1.5 px-3 rounded-lg transition-colors flex items-center gap-1.5 text-xs"
+                                                    >
+                                                        <Trash className="w-3 h-3" /> Clear
+                                                    </button>
+                                                )}
+                                            </div>
+                                            {analysisHistory.length > 0 ? (
+                                                <div className="space-y-3 max-h-96 overflow-y-auto">
+                                                    {analysisHistory.map((entry) => (
+                                                        <div key={entry.id} className="bg-slate-900 rounded-lg p-3 border border-slate-700">
+                                                            <div className="flex items-start justify-between mb-2">
+                                                                <div>
+                                                                    <span className="text-purple-400 text-xs bg-purple-500/20 px-2 py-0.5 rounded-full">Analyze</span>
+                                                                    <span className="text-slate-500 text-xs ml-2">{new Date(entry.timestamp).toLocaleString()}</span>
+                                                                </div>
+                                                                <button onClick={() => removeFromAnalysisHistory(entry.id)} className="text-slate-500 hover:text-red-400 p-1">
+                                                                    <X className="w-4 h-4" />
+                                                                </button>
+                                                            </div>
+                                                            <p className="text-slate-300 text-sm line-clamp-2 mb-2">{entry.prompt}</p>
+                                                            <div className="flex gap-2 overflow-x-auto">
+                                                                {entry.images?.slice(0, 5).map((img, idx) => (
+                                                                    <img key={idx} src={img.preview} alt="" className="w-12 h-12 object-cover rounded border border-slate-600 flex-shrink-0" />
+                                                                ))}
+                                                                {entry.images?.length > 5 && (
+                                                                    <div className="w-12 h-12 rounded border border-slate-600 bg-slate-700 flex items-center justify-center text-slate-400 text-xs flex-shrink-0">
+                                                                        +{entry.images.length - 5}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <p className="text-slate-500 text-sm text-center py-4">No analysis history yet.</p>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
 
@@ -2826,10 +3627,11 @@
                                                                         </button>
                                                                         <button
                                                                             onClick={() => iterateInEditMode(img.results[0])}
-                                                                            className="bg-amber-500 hover:bg-amber-600 text-white font-semibold py-2 px-3 rounded-lg transition-colors flex items-center justify-center gap-1.5 text-sm"
-                                                                            title="Iterate - Edit this result"
+                                                                            className="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-semibold py-2 px-3 rounded-lg transition-colors flex items-center justify-center gap-1.5 text-sm"
+                                                                            title="Iterate - Send result to new slot for further editing"
                                                                         >
                                                                             <RefreshCw className="w-4 h-4" />
+                                                                            Iterate
                                                                         </button>
                                                                     </div>
                                                                 </>
@@ -2837,13 +3639,23 @@
                                                                 <>
                                                                     <div className="flex items-center justify-between mb-2">
                                                                         <span className="text-slate-300 text-sm font-medium">{img.results.length} Variations</span>
-                                                                        <button
-                                                                            onClick={() => downloadAllVariations(index)}
-                                                                            className="bg-green-500 hover:bg-green-600 text-white font-semibold py-1.5 px-3 rounded-lg transition-colors flex items-center gap-1.5 text-xs"
-                                                                        >
-                                                                            <Download className="w-3 h-3" />
-                                                                            Download All
-                                                                        </button>
+                                                                        <div className="flex gap-2">
+                                                                            <button
+                                                                                onClick={() => iterateInEditMode(img.results[0])}
+                                                                                className="bg-amber-500 hover:bg-amber-600 text-white font-semibold py-1.5 px-3 rounded-lg transition-colors flex items-center gap-1.5 text-xs"
+                                                                                title="Iterate first variation"
+                                                                            >
+                                                                                <RefreshCw className="w-3 h-3" />
+                                                                                Iterate #1
+                                                                            </button>
+                                                                            <button
+                                                                                onClick={() => downloadAllVariations(index)}
+                                                                                className="bg-green-500 hover:bg-green-600 text-white font-semibold py-1.5 px-3 rounded-lg transition-colors flex items-center gap-1.5 text-xs"
+                                                                            >
+                                                                                <Download className="w-3 h-3" />
+                                                                                Download All
+                                                                            </button>
+                                                                        </div>
                                                                     </div>
                                                                     <div className="grid grid-cols-2 gap-2">
                                                                         {img.results.map((result, varIdx) => (
@@ -2860,22 +3672,22 @@
                                                                                 <div className="absolute bottom-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                                                                     <button
                                                                                         onClick={() => downloadImage(index, varIdx)}
-                                                                                        className="bg-green-500 hover:bg-green-600 text-white p-1.5 rounded-lg"
+                                                                                        className="bg-green-500 hover:bg-green-600 text-white p-1.5 rounded-lg shadow-lg"
                                                                                         title="Download"
                                                                                     >
                                                                                         <Download className="w-3 h-3" />
                                                                                     </button>
                                                                                     <button
                                                                                         onClick={() => addResultToCollection(result, `edited-${index + 1}-v${varIdx + 1}.jpg`)}
-                                                                                        className="bg-blue-500 hover:bg-blue-600 text-white p-1.5 rounded-lg"
+                                                                                        className="bg-blue-500 hover:bg-blue-600 text-white p-1.5 rounded-lg shadow-lg"
                                                                                         title="Add to Collection"
                                                                                     >
                                                                                         <Folder className="w-3 h-3" />
                                                                                     </button>
                                                                                     <button
                                                                                         onClick={() => iterateInEditMode(result)}
-                                                                                        className="bg-amber-500 hover:bg-amber-600 text-white p-1.5 rounded-lg"
-                                                                                        title="Iterate"
+                                                                                        className="bg-amber-500 hover:bg-amber-600 text-white p-1.5 rounded-lg shadow-lg"
+                                                                                        title="Iterate - Send to new slot"
                                                                                     >
                                                                                         <RefreshCw className="w-3 h-3" />
                                                                                     </button>
@@ -3967,10 +4779,11 @@
                                                                         </button>
                                                                         <button
                                                                             onClick={() => iterateInEditMode(slot.results[0])}
-                                                                            className="bg-amber-500 hover:bg-amber-600 text-white font-semibold py-2 px-3 rounded-lg transition-colors flex items-center justify-center"
-                                                                            title="Iterate - Edit this result"
+                                                                            className="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-semibold py-2 px-3 rounded-lg transition-colors flex items-center justify-center gap-1.5 text-sm"
+                                                                            title="Iterate - Send to Image Editor for further editing"
                                                                         >
                                                                             <RefreshCw className="w-4 h-4" />
+                                                                            Iterate
                                                                         </button>
                                                                     </div>
                                                                 </>
@@ -3978,13 +4791,23 @@
                                                                 <>
                                                                     <div className="flex items-center justify-between mb-2">
                                                                         <span className="text-slate-300 text-sm font-medium">{slot.results.length} Variations</span>
-                                                                        <button
-                                                                            onClick={() => downloadAllGenSlotImages(index)}
-                                                                            className="bg-green-500 hover:bg-green-600 text-white font-semibold py-1.5 px-3 rounded-lg transition-colors flex items-center gap-1.5 text-xs"
-                                                                        >
-                                                                            <Download className="w-3 h-3" />
-                                                                            Download All
-                                                                        </button>
+                                                                        <div className="flex gap-2">
+                                                                            <button
+                                                                                onClick={() => iterateInEditMode(slot.results[0])}
+                                                                                className="bg-amber-500 hover:bg-amber-600 text-white font-semibold py-1.5 px-3 rounded-lg transition-colors flex items-center gap-1.5 text-xs"
+                                                                                title="Iterate first variation in Editor"
+                                                                            >
+                                                                                <RefreshCw className="w-3 h-3" />
+                                                                                Iterate #1
+                                                                            </button>
+                                                                            <button
+                                                                                onClick={() => downloadAllGenSlotImages(index)}
+                                                                                className="bg-green-500 hover:bg-green-600 text-white font-semibold py-1.5 px-3 rounded-lg transition-colors flex items-center gap-1.5 text-xs"
+                                                                            >
+                                                                                <Download className="w-3 h-3" />
+                                                                                Download All
+                                                                            </button>
+                                                                        </div>
                                                                     </div>
                                                                     <div className="grid grid-cols-2 gap-2">
                                                                         {slot.results.map((result, varIdx) => (
@@ -3999,22 +4822,22 @@
                                                                                 <div className="absolute bottom-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                                                                     <button
                                                                                         onClick={() => downloadGenSlotImage(index, varIdx)}
-                                                                                        className="bg-green-500 hover:bg-green-600 text-white p-1.5 rounded-lg"
+                                                                                        className="bg-green-500 hover:bg-green-600 text-white p-1.5 rounded-lg shadow-lg"
                                                                                         title="Download"
                                                                                     >
                                                                                         <Download className="w-3 h-3" />
                                                                                     </button>
                                                                                     <button
                                                                                         onClick={() => addResultToCollection(result, `generated-${index + 1}-v${varIdx + 1}.jpg`)}
-                                                                                        className="bg-blue-500 hover:bg-blue-600 text-white p-1.5 rounded-lg"
+                                                                                        className="bg-blue-500 hover:bg-blue-600 text-white p-1.5 rounded-lg shadow-lg"
                                                                                         title="Add to Collection"
                                                                                     >
                                                                                         <Folder className="w-3 h-3" />
                                                                                     </button>
                                                                                     <button
                                                                                         onClick={() => iterateInEditMode(result)}
-                                                                                        className="bg-amber-500 hover:bg-amber-600 text-white p-1.5 rounded-lg"
-                                                                                        title="Iterate"
+                                                                                        className="bg-amber-500 hover:bg-amber-600 text-white p-1.5 rounded-lg shadow-lg"
+                                                                                        title="Iterate - Send to Editor"
                                                                                     >
                                                                                         <RefreshCw className="w-3 h-3" />
                                                                                     </button>
@@ -4200,7 +5023,7 @@
 
                         {/* Footer */}
                         <div className="mt-8 text-center text-slate-500 text-sm">
-                            <p>⚡ Powered by {availableModels.find(m => m.id === selectedModel)?.name || 'Google Gemini'}</p>
+                            <p>⚡ Powered by {availableModels.find(m => m.id === selectedModel)?.name || 'Google Gemini'} & OpenAI Vision</p>
                         </div>
                     </div>
                     
@@ -4265,6 +5088,11 @@
                         selectedModel={selectedModel}
                         onModelChange={handleSaveModel}
                         availableModels={availableModels}
+                        openaiKey={openaiKey}
+                        onSaveOpenai={handleSaveOpenaiKey}
+                        openaiModel={openaiModel}
+                        onOpenaiModelChange={handleSaveOpenaiModel}
+                        openaiModels={openaiModels}
                     />
                 </div>
             );
