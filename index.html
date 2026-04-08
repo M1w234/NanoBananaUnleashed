@@ -1844,23 +1844,17 @@
                         } else {
                             // Gemini models use generateContent
                             apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`;
-                            requestBody = {
-                                contents: [{ parts: [{ text: `Generate an image: ${slot.prompt}` }] }],
-                                generationConfig: {
-                                    responseModalities: ['IMAGE', 'TEXT']
-                                }
-                            };
-                        }
-                        
-                        // Build imageConfig for aspect ratio support
-                        if (!selectedModel.startsWith('imagen')) {
                             const slotImageConfig = {};
                             if (slot.aspectRatio && slot.aspectRatio !== 'auto') {
                                 slotImageConfig.aspectRatio = slot.aspectRatio;
                             }
-                            if (Object.keys(slotImageConfig).length > 0) {
-                                requestBody.generationConfig.imageConfig = slotImageConfig;
-                            }
+                            requestBody = {
+                                contents: [{ parts: [{ text: `Generate an image: ${slot.prompt}` }] }],
+                                generationConfig: {
+                                    responseModalities: ['IMAGE'],
+                                    ...(Object.keys(slotImageConfig).length > 0 && { imageConfig: slotImageConfig })
+                                }
+                            };
                         }
 
                         const response = await fetch(apiUrl, {
