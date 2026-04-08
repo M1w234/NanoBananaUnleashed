@@ -16,7 +16,7 @@ Use your own API keys for AI image analysis, editing, and generation — no subs
 ## Why Use This?
 
 - **Your Keys, Your Control** — Direct API access, no middleman service taking a cut
-- **Pay Only What You Use** — API costs typically $0.002–0.02 per generation vs $20+/mo subscriptions
+- **Pay Only What You Use** — API costs typically $0.02–0.20 per generation vs $20+/mo subscriptions
 - **Fully Local & Private** — All data stored in IndexedDB on your device. Nothing uploaded to external servers
 - **No Setup Required** — Single HTML file, no build step, no backend. Just open and go
 - **Unlimited Parallel Processing** — Run as many simultaneous generations as your API quota allows
