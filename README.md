@@ -1,117 +1,51 @@
-[README (2).md](https://github.com/user-attachments/files/24564354/README.2.md)
-# 🍌 Nana Banana Unleashed - Gemini Image Tools
+# Nana Banana Pro Unleashed
 
-A powerful, browser-based image editing and generation tool powered by Google's Gemini AI. Edit existing images with natural language prompts or generate stunning new images from scratch - all running entirely in your browser.
+**Browser-based AI image suite powered by Google Gemini & OpenAI Vision**
+
+Use your own API keys for AI image analysis, editing, and generation — no subscriptions, no backend, no data leaving your browser.
 
 ![Version](https://img.shields.io/badge/version-1.0.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![React](https://img.shields.io/badge/React-18-61dafb)
 ![Gemini](https://img.shields.io/badge/Gemini-AI-orange)
 
-**[🚀 Try it Now](https://m1w234.github.io/NanoBananaUnleashed/)**
+**[Try it Now](https://m1w234.github.io/NanoBananaUnleashed/)**
+
+---
+
+## Why Use This?
+
+- **Your Keys, Your Control** — Direct API access, no middleman service taking a cut
+- **Pay Only What You Use** — API costs typically $0.002–0.02 per generation vs $20+/mo subscriptions
+- **Fully Local & Private** — All data stored in IndexedDB on your device. Nothing uploaded to external servers
+- **No Setup Required** — Single HTML file, no build step, no backend. Just open and go
+- **Unlimited Parallel Processing** — Run as many simultaneous generations as your API quota allows
 
 ---
 
 ## Features
 
-### Dual Mode Operation
-- **Edit Mode**: Transform existing images using AI-powered edits with natural language prompts
-- **Generate Mode**: Create original images from text descriptions
+### Five Modes
+
+| Mode | What It Does |
+|------|-------------|
+| **Analyze** | Upload images and get AI-powered descriptions and analysis |
+| **Image Editor** | Transform existing images with natural language prompts |
+| **Image Generator** | Create original images from text descriptions |
+| **Multi-Image Edit** | Apply the same edit across multiple images at once |
+| **Multi-Image Combine** | Merge 2+ images together with a guiding prompt |
 
 ### Core Capabilities
-- **Drag & Drop Interface**: Intuitive image upload with visual feedback
-- **Multiple AI Models**: Choose from various Gemini models (Flash 2.0, Exp-1206, Pro-002, Flash-8B)
-- **History Tracking**: Automatically saves all generations and edits with timestamps
-- **Collection System**: Curate your favorite creations in a personal gallery
-- **Full-Size Preview**: Click any image for an immersive modal view
-- **Batch Download**: Export individual images or entire collections
-- **Persistent Storage**: IndexedDB integration ensures your work survives browser sessions
 
-### User Experience
-- **No Backend Required**: Runs entirely in the browser - no server setup needed
-- **Secure API Key Storage**: Your credentials stay local in your browser
-- **Responsive Design**: Beautiful interface built with Tailwind CSS
-- **Instant Feedback**: Real-time loading states and error handling
-- **Smart History**: Chronologically organized with source tracking
-
----
-
-## Technology Stack
-
-- **Frontend Framework**: React 18
-- **Styling**: Tailwind CSS
-- **AI Integration**: Google Gemini API
-- **Storage**: IndexedDB for image persistence, LocalStorage for settings
-- **Icons**: Lucide React
-- **Build**: Single-file HTML application (no build step required!)
-
----
-
-## Prerequisites
-
-Before you begin, you'll need:
-- A modern web browser (Chrome, Firefox, Safari, Edge)
-- A Google Gemini API key ([Get one here](https://aistudio.google.com/app/apikey))
-
----
-
-## Getting Started
-
-### Option 1: Use the Live Version
-
-**Visit the live app**: [https://m1w234.github.io/NanoBananaUnleashed/](https://m1w234.github.io/NanoBananaUnleashed/)
-
-### Option 2: Run Locally
-
-1. **Clone or Download** this repository
-   ```bash
-   git clone https://github.com/m1w234/NanoBananaUnleashed.git
-   ```
-
-2. **Open the HTML file** in your browser
-   - Simply double-click `index.html`
-   - Or serve it with any local server
-
-3. **Add Your API Key**
-   - Click the ⚙️ settings icon in the top-right
-   - Paste your Gemini API key
-   - Select your preferred model
-   - Click "Save Settings"
-
-4. **Start Creating!**
-   - Switch between Edit and Generate modes
-   - Upload images or describe what you want to create
-   - Watch the magic happen
-
----
-
-## Usage Guide
-
-### Editing Images
-
-1. Click the **Edit** tab
-2. Drag and drop an image or click to upload
-3. Enter a natural language prompt describing your desired changes:
-   - "Make the sky purple and add stars"
-   - "Remove the background"
-   - "Change this to a watercolor painting style"
-4. Click "Edit with AI" and wait for the magic!
-
-### Generating Images
-
-1. Click the **Generate** tab
-2. Describe the image you want to create:
-   - "A serene mountain landscape at sunset"
-   - "A futuristic city with flying cars"
-   - "A cute robot playing with a puppy"
-3. Click "Generate Image" and watch your vision come to life!
-
-### Managing Your Work
-
-- **History**: View all your past generations with source images and prompts
-- **Collection**: Save favorite images by clicking the star icon
-- **Download**: Click download buttons to save individual images
-- **Preview**: Click any image for a full-screen view
+- **Drag & Drop Interface** — Intuitive upload with visual feedback
+- **Multiple AI Models** — Choose from Gemini Flash 2.0, Exp-1206, Pro-002, Flash-8B
+- **Aspect Ratio Control** — 1:1, 16:9, 9:16, 4:3, 3:4 per generation
+- **Batch Processing** — Multiple slots per mode for parallel workflows
+- **History Tracking** — All generations saved with timestamps and source tracking
+- **Collection System** — Star and curate your favorites in a personal gallery
+- **Full-Size Preview** — Click any image for an immersive modal view
+- **Batch Download** — Export individual images or entire collections
+- **Persistent Storage** — IndexedDB ensures your work survives browser sessions
 
 ---
 
@@ -126,22 +60,86 @@ Before you begin, you'll need:
 
 ---
 
-## Privacy & Security
+## Getting Started
 
-- **API keys are stored locally** in your browser's LocalStorage
-- **No data is sent to external servers** except Google's Gemini API
-- **Images are stored in IndexedDB** on your device only
-- **No tracking or analytics** - your privacy is respected
+### Option 1: Use the Live Version
+
+**[https://m1w234.github.io/NanoBananaUnleashed/](https://m1w234.github.io/NanoBananaUnleashed/)**
+
+### Option 2: Run Locally
+
+1. Clone or download the repository
+   ```bash
+   git clone https://github.com/m1w234/NanoBananaUnleashed.git
+   ```
+2. Open `index.html` in your browser (double-click or serve with any local server)
+3. Click the settings icon and add your API key
+4. Start creating
+
+### API Keys
+
+You'll need at least one:
+- [Google AI Studio](https://aistudio.google.com/app/apikey) — Gemini models (editing + generation)
+- [OpenAI Platform](https://platform.openai.com/api-keys) — Vision models (analysis)
+
+All keys are stored locally in your browser's LocalStorage. Nothing is sent anywhere except the respective AI provider APIs.
 
 ---
 
-## Customization
+## Usage Guide
 
-The application is built as a single HTML file, making it easy to customize:
+### Editing Images
+1. Go to the **Image Editor** tab
+2. Drag and drop an image or click to upload
+3. Describe the change: "Make the sky purple", "Remove the background", "Watercolor style"
+4. Click **Edit with AI**
 
-- **Styling**: Modify Tailwind classes or add custom CSS in the `<style>` section
-- **Models**: Update the `availableModels` array to add/remove AI models
-- **Features**: The React component structure makes adding new features straightforward
+### Generating Images
+1. Go to the **Image Generator** tab
+2. Describe what you want: "A futuristic city with flying cars"
+3. Select aspect ratio and number of variations
+4. Click **Generate**
+
+### Multi-Image Editing
+1. Go to **Multi-Image Edit**
+2. Upload multiple images
+3. Enter one prompt that applies to all of them
+4. Process all at once
+
+### Combining Images
+1. Go to **Multi-Image Combine**
+2. Upload 2+ source images
+3. Describe how to merge them: "Blend these into a panorama"
+4. Generate the combination
+
+### Managing Your Work
+- **History** — View all past generations with source images and prompts
+- **Collection** — Save favorites by clicking the star icon
+- **Download** — Save individual images or batch export
+- **Preview** — Click any image for full-screen view
+
+---
+
+## Tech Stack
+
+- **React 18** — Frontend framework (CDN-loaded, no build step)
+- **Tailwind CSS** — Styling
+- **Google Gemini API** — Image editing and generation
+- **OpenAI Vision API** — Image analysis
+- **IndexedDB** — Image persistence
+- **LocalStorage** — Settings and preferences
+- **Lucide React** — Icons
+
+Single HTML file architecture — the entire app is self-contained with no build process required.
+
+---
+
+## Privacy & Security
+
+- API keys stored locally in your browser's LocalStorage
+- Images stored in IndexedDB on your device only
+- No data sent to external servers except Google/OpenAI APIs for processing
+- No tracking or analytics
 
 ---
 
@@ -158,61 +156,41 @@ The application is built as a single HTML file, making it easy to customize:
 - Try clearing browser cache and reloading
 
 ### Generation Failures
-- Some prompts may be filtered by safety settings
-- Try rephrasing your prompt
+- Some prompts may be filtered by safety settings — try rephrasing
 - Switch to a different model
+- Check your API quota/rate limits
 
 ---
 
-## Contributing
+## Customization
 
-Contributions are welcome! Here's how you can help:
+The app is a single HTML file, making it easy to modify:
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+- **Styling** — Edit Tailwind classes or add custom CSS in the `<style>` section
+- **Models** — Update the `availableModels` array to add/remove AI models
+- **Features** — React component structure makes extending straightforward
 
 ---
 
 ## Roadmap
 
-- [ ] Add batch image processing
-- [ ] Implement style presets
-- [ ] Add prompt history and suggestions
-- [ ] Support for video generation (when available)
+- [ ] Style presets for common edits
+- [ ] Prompt history and suggestions
+- [ ] Video generation support
 - [ ] Export/import collections
-- [ ] Add undo/redo functionality
-- [ ] Implement image-to-image variations
+- [ ] Undo/redo functionality
+- [ ] Image-to-image variations
 
 ---
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-## Acknowledgments
-
-- **Google Gemini** for providing the powerful AI capabilities
-- **React Team** for the amazing framework
-- **Tailwind CSS** for the beautiful styling system
-- **Lucide** for the clean, modern icons
+MIT License — see [LICENSE](LICENSE) file for details.
 
 ---
 
 ## Contact
 
-**Michael Wong** - [Team Wong Hawaii](https://teamwonghawaii.com)
+**Michael Wong** — [Team Wong Hawaii](https://teamwonghawaii.com)
 
 **Project Link**: [https://m1w234.github.io/NanoBananaUnleashed/](https://m1w234.github.io/NanoBananaUnleashed/)
-
----
-
-<div align="center">
-  <strong>Powered by Google Gemini AI</strong>
-  <br>
-  Made with ❤️ for creators and dreamers
-</div>

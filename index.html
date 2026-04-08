@@ -1852,6 +1852,17 @@
                             };
                         }
                         
+                        // Build imageConfig for aspect ratio support
+                        if (!selectedModel.startsWith('imagen')) {
+                            const slotImageConfig = {};
+                            if (slot.aspectRatio && slot.aspectRatio !== 'auto') {
+                                slotImageConfig.aspectRatio = slot.aspectRatio;
+                            }
+                            if (Object.keys(slotImageConfig).length > 0) {
+                                requestBody.generationConfig.imageConfig = slotImageConfig;
+                            }
+                        }
+
                         const response = await fetch(apiUrl, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -1866,7 +1877,7 @@
 
                         const data = await response.json();
                         console.log('Generate API response:', JSON.stringify(data, null, 2));
-                        
+
                         // Handle Imagen response format
                         if (selectedModel.startsWith('imagen')) {
                             if (data.predictions?.[0]?.bytesBase64Encoded) {
@@ -2251,6 +2262,15 @@
                 updateMultiSlot(slotIndex, { loading: true, error: null, results: [] });
 
                 try {
+                    const slotImageConfig = {};
+                    if (slot.aspectRatio && slot.aspectRatio !== 'auto') {
+                        slotImageConfig.aspectRatio = slot.aspectRatio;
+                    }
+                    const slotGenConfig = { responseModalities: ['IMAGE'] };
+                    if (Object.keys(slotImageConfig).length > 0) {
+                        slotGenConfig.imageConfig = slotImageConfig;
+                    }
+
                     const results = [];
                     for (const img of slot.images) {
                         const response = await fetch(
@@ -2265,7 +2285,7 @@
                                             { text: slot.prompt }
                                         ]
                                     }],
-                                    generationConfig: { responseModalities: ['image', 'text'] }
+                                    generationConfig: slotGenConfig
                                 })
                             }
                         );
@@ -2610,6 +2630,15 @@
                         inlineData: { mimeType: 'image/jpeg', data: img.base64 }
                     }));
 
+                    const combineSlotImageConfig = {};
+                    if (slot.aspectRatio && slot.aspectRatio !== 'auto') {
+                        combineSlotImageConfig.aspectRatio = slot.aspectRatio;
+                    }
+                    const combineSlotGenConfig = { responseModalities: ['IMAGE'] };
+                    if (Object.keys(combineSlotImageConfig).length > 0) {
+                        combineSlotGenConfig.imageConfig = combineSlotImageConfig;
+                    }
+
                     const results = [];
                     for (let i = 0; i < slot.variations; i++) {
                         const response = await fetch(
@@ -2621,7 +2650,7 @@
                                     contents: [{
                                         parts: [...imageParts, { text: slot.prompt }]
                                     }],
-                                    generationConfig: { responseModalities: ['image', 'text'] }
+                                    generationConfig: combineSlotGenConfig
                                 })
                             }
                         );
