@@ -1,4 +1,4 @@
-# Nana Banana Pro Unleashed
+# Nana Banana Unleashed
 
 **Browser-based AI image suite powered by Google Gemini & OpenAI Vision**
 
